@@ -2,7 +2,20 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = (import.meta.env.DEV && typeof window !== "undefined")
+const checkUseLocalProxy = () => {
+  if (typeof window === "undefined") return false;
+  const hn = window.location.hostname;
+  return (
+    import.meta.env.DEV ||
+    hn.includes("run.app") ||
+    hn.includes("localhost") ||
+    hn.includes("127.0.0.1") ||
+    hn.includes("google") ||
+    hn.includes("aistudio")
+  );
+};
+
+const SUPABASE_URL = checkUseLocalProxy()
   ? window.location.origin
   : import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;

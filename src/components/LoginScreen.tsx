@@ -14,7 +14,7 @@ import {
   Lock,
   ShoppingCart,
 } from "lucide-react";
-import logoElite from "@/assets/logo-elite.jpg";
+const logoElite = "https://pub-a3cfd193eb6748ec96b423de3caf804f.r2.dev/logo-elite.jpg";
 import DemoAdminPanel from "@/components/DemoAdminPanel";
 import PainelComercial from "@/components/PainelComercial"; // Painel Comercial modal
 import LgpdPanel from "@/components/LgpdPanel";

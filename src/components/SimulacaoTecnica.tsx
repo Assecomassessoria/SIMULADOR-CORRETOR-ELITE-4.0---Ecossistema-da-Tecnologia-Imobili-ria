@@ -103,6 +103,17 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
     } catch {}
   }, [docsPanelOpen]);
 
+  const [dashboardOpen, setDashboardOpen] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const saved = localStorage.getItem("elite_dashboard_open");
+    return saved === null ? true : saved === "1";
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem("elite_dashboard_open", dashboardOpen ? "1" : "0");
+    } catch {}
+  }, [dashboardOpen]);
+
   // Load admin data into fields
   useEffect(() => {
     if (adminData) {
@@ -1939,13 +1950,24 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
 
               {/* Bloco 4: Dashboard Interativo */}
               <div className="bg-card rounded-xl border border-border p-5 space-y-4 shadow-sm">
-                <div className="flex items-center gap-2 border-b border-primary/20 pb-3">
-                  <span className="w-2.5 h-2.5 rounded-full bg-gold"></span>
-                  <h3 className="text-sm font-extrabold text-primary uppercase tracking-wider">
-                    Bloco 4: Dashboard Interativo (Gráficos e Indicadores)
-                  </h3>
+                <div className="flex items-center justify-between border-b border-primary/20 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-gold"></span>
+                    <h3 className="text-sm font-extrabold text-primary uppercase tracking-wider">
+                      Bloco 4: Dashboard Interativo (Gráficos e Indicadores)
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDashboardOpen(!dashboardOpen)}
+                    className="p-1.5 px-3 bg-[#002D72]/5 hover:bg-[#002D72]/15 text-primary border border-[#002D72]/15 rounded-xl flex items-center gap-2 transition-all text-xs font-black uppercase tracking-wider"
+                    aria-expanded={dashboardOpen}
+                  >
+                    <span>{dashboardOpen ? "Recolher" : "Expandir"}</span>
+                    {dashboardOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </button>
                 </div>
-                <DashboardInterativo fields={fields} results={results} />
+                {dashboardOpen && <DashboardInterativo fields={fields} results={results} />}
               </div>
 
               {/* Bloco 5: Documentos e Relatórios (posicionado na base da página) */}
@@ -2237,6 +2259,8 @@ function DashboardInterativo({ fields, results }: DashboardInterativoProps) {
   const valorInterm = results.valorIntermParc || 0;
   const saldoConst = results.subtotal || 0;
   const valorParcelas = results.valorObras || 0;
+  const sinalValor = results.sinalValor || 0;
+  const parcelaChaves = parseCurrency(fields.chaves) || 0;
 
   // Scalar values (non-monetary)
   const nrParcelasFluxo = fields.nrParcelasFluxo || "0";
@@ -2258,18 +2282,20 @@ function DashboardInterativo({ fields, results }: DashboardInterativoProps) {
     { id: "saldoEntrada", label: "Saldo Entrada", value: saldoEntrada, color: "#CA8A04", group: "Construtora" },
     { id: "fluxoConstAdicional", label: "Fluxo Const. Adicional", value: fluxoConstAdicional, color: "#FBBF24", group: "Construtora" },
     { id: "totalFluxoObras", label: "Total fluxo obras", value: totalFluxoObras, color: "#06B6D4", group: "Construtora" },
+    { id: "sinalValor", label: "Sinal (R$)", value: sinalValor, color: "#F43F5E", group: "Construtora" },
     { id: "valorInterm", label: "Valor Intermediárias", value: valorInterm, color: "#7C3AED", group: "Construtora" },
     { id: "totalInterm", label: "Total Intermediárias", value: totalInterm, color: "#8B5CF6", group: "Construtora" },
+    { id: "parcelaChaves", label: "Parcela Chaves", value: parcelaChaves, color: "#DB2777", group: "Construtora" },
     { id: "saldoConst", label: "Saldo Construtora", value: saldoConst, color: "#4B5563", group: "Construtora" },
     { id: "valorParcelas", label: "Valor Parcelas", value: valorParcelas, color: "#EC4899", group: "Construtora" },
   ];
 
   // Presets definition mapping
   const presetMapping: Record<string, string[]> = {
-    geral: ["financiamento", "fgts", "subsidio", "casa", "saldoEntrada", "atoCliente"],
+    geral: ["financiamento", "fgts", "subsidio", "casa", "saldoEntrada", "atoCliente", "sinalValor", "parcelaChaves"],
     beneficios: ["descLanc", "documentos", "campanha", "totalBeneficios"],
     recursos: ["financiamento", "fgts", "subsidio", "casa", "atoCliente", "saldoEntrada"],
-    pagamentos: ["atoCliente", "saldoEntrada", "totalFluxoObras", "totalInterm", "saldoConst", "valorParcelas"],
+    pagamentos: ["atoCliente", "saldoEntrada", "sinalValor", "totalFluxoObras", "totalInterm", "parcelaChaves", "saldoConst", "valorParcelas"],
     todos: allMetrics.map((m) => m.id),
   };
 
@@ -2532,18 +2558,6 @@ function DashboardInterativo({ fields, results }: DashboardInterativoProps) {
           </div>
           <div className="bg-purple-100 p-2 rounded-lg text-purple-800 text-xs font-extrabold uppercase">
             {parcIntermText}
-          </div>
-        </div>
-
-        {/* PLANO DE MESES (CONSTRUTORA) */}
-        <div className="rounded-xl p-4 bg-amber-50 border border-amber-200 flex items-center justify-between md:col-start-1 md:col-span-2">
-          <div className="space-y-0.5">
-            <span className="text-[9px] font-black uppercase tracking-widest text-amber-800">Plano Construtora (meses)</span>
-            <p className="text-lg font-black text-amber-700">{planoMeses} meses</p>
-            <p className="text-[10px] text-amber-600">Tempo de vigência acordado no plano de parcelamento estruturado</p>
-          </div>
-          <div className="bg-amber-100 p-2.5 rounded-xl text-amber-700 text-base font-bold">
-            📅
           </div>
         </div>
 
