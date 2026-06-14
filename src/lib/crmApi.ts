@@ -45,6 +45,14 @@ function ensureValidSession(): Promise<string | null> {
 }
 
 async function crmRequest(action: string, params: Record<string, any> = {}) {
+  const email = getUserEmail();
+  const token = getSessionToken();
+  
+  if (!email && !token) {
+    console.log(`[CRM] No user session found. Skipping API request for action: ${action}`);
+    return { success: true, data: [] };
+  }
+
   const { supabase } = await import('@/integrations/supabase/client');
 
   const invoke = async (tk: string | null) => {

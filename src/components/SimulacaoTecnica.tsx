@@ -57,6 +57,28 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
   const contentRef = useRef<HTMLDivElement>(null);
   const [subTab, setSubTab] = useState<"tecnica" | "sim40" | "custom" | "caixa">("tecnica");
 
+  const handleNavigateToBloco4 = useCallback(() => {
+    setSubTab("tecnica");
+    setDashboardOpen(true);
+    setTimeout(() => {
+      const element = document.getElementById("bloco-4-dashboard");
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 150);
+  }, []);
+
+  const handleNavigateToBloco5 = useCallback(() => {
+    setSubTab("tecnica");
+    setDocsPanelOpen(true);
+    setTimeout(() => {
+      const element = document.getElementById("bloco-5-documentos");
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 150);
+  }, []);
+
   const [fields, setFields] = useState({
     infoEmp: "",
     infoCli: "",
@@ -1510,6 +1532,34 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
             <ExternalLink className="w-3.5 h-3.5 text-[#005ca9]" />
             D - CAIXA SIMULAÇÃO
           </button>
+
+          <div className="pb-2 border-b border-border mt-4 mb-2">
+            <span className="text-[10px] font-black text-primary uppercase tracking-[2px]">Navegação Interativa</span>
+          </div>
+
+          <button
+            onClick={handleNavigateToBloco4}
+            className={`w-full flex items-center gap-3 px-4 py-3 text-[11px] font-black uppercase tracking-wider rounded-lg transition-all text-left ${
+              subTab === "tecnica" && dashboardOpen
+                ? "bg-[#002D72]/10 text-[#002D72] border-l-4 border-l-gold shadow-sm"
+                : "bg-[#F8FAFC] text-muted-foreground border border-border hover:bg-muted"
+            }`}
+          >
+            <BarChart3 className="w-3.5 h-3.5 text-[#002D72]" />
+            Bloco 4: Dashboard Interativo (Gráficos e Indicadores)
+          </button>
+
+          <button
+            onClick={handleNavigateToBloco5}
+            className={`w-full flex items-center gap-3 px-4 py-3 text-[11px] font-black uppercase tracking-wider rounded-lg transition-all text-left ${
+              subTab === "tecnica" && docsPanelOpen
+                ? "bg-[#002D72]/10 text-[#002D72] border-l-4 border-l-gold shadow-sm"
+                : "bg-[#F8FAFC] text-muted-foreground border border-border hover:bg-muted"
+            }`}
+          >
+            <FolderOpen className="w-3.5 h-3.5 text-[#002D72]" />
+            Bloco 5: Documentos e Relatórios
+          </button>
         </div>
 
         {/* PAINEL CENTRAL DE CONTEÚDO (Fluxo de Blocos) */}
@@ -1949,7 +1999,7 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
               </div>
 
               {/* Bloco 4: Dashboard Interativo */}
-              <div className="bg-card rounded-xl border border-border p-5 space-y-4 shadow-sm">
+              <div id="bloco-4-dashboard" className="bg-card rounded-xl border border-border p-5 space-y-4 shadow-sm scroll-mt-24">
                 <div className="flex items-center justify-between border-b border-primary/20 pb-3">
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-gold"></span>
@@ -1971,7 +2021,7 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
               </div>
 
               {/* Bloco 5: Documentos e Relatórios (posicionado na base da página) */}
-              <div className="rounded-xl border-2 border-gold/40 bg-card overflow-hidden shadow-sm">
+              <div id="bloco-5-documentos" className="rounded-xl border-2 border-gold/40 bg-card overflow-hidden shadow-sm scroll-mt-24">
                 <button
                   type="button"
                   onClick={() => setDocsPanelOpen(!docsPanelOpen)}
@@ -2294,7 +2344,7 @@ function DashboardInterativo({ fields, results }: DashboardInterativoProps) {
   const presetMapping: Record<string, string[]> = {
     geral: ["financiamento", "fgts", "subsidio", "casa", "saldoEntrada", "atoCliente", "sinalValor", "parcelaChaves"],
     beneficios: ["descLanc", "documentos", "campanha", "totalBeneficios"],
-    recursos: ["financiamento", "fgts", "subsidio", "casa", "atoCliente", "saldoEntrada"],
+    recursos: ["financiamento", "fgts", "subsidio", "casa", "atoCliente", "saldoEntrada", "sinalValor", "parcelaChaves"],
     pagamentos: ["atoCliente", "saldoEntrada", "sinalValor", "totalFluxoObras", "totalInterm", "parcelaChaves", "saldoConst", "valorParcelas"],
     todos: allMetrics.map((m) => m.id),
   };
