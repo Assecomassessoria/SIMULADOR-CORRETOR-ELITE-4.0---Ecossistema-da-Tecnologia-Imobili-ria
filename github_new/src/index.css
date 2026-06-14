@@ -1,0 +1,129 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 216 28% 94%;
+    --foreground: 218 60% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 218 60% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 218 60% 10%;
+
+    --primary: 220 70% 10%;
+    --primary-foreground: 42 60% 55%;
+
+    --secondary: 42 60% 55%;
+    --secondary-foreground: 220 70% 10%;
+
+    --muted: 216 28% 94%;
+    --muted-foreground: 0 0% 40%;
+
+    --accent: 42 60% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 140 49% 33%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 24 100% 47%;
+    --warning-foreground: 0 0% 100%;
+
+    --border: 0 0% 85%;
+    --input: 0 0% 80%;
+    --ring: 42 60% 55%;
+
+    --radius: 0.5rem;
+
+    /* Elite custom tokens */
+    --navy: 220 70% 10%;
+    --gold: 42 60% 55%;
+    --gold-bright: 43 80% 52%;
+    --ice-white: 216 33% 97%;
+
+    --sidebar-background: 220 70% 10%;
+    --sidebar-foreground: 42 60% 55%;
+    --sidebar-primary: 42 60% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 70% 15%;
+    --sidebar-accent-foreground: 42 60% 55%;
+    --sidebar-border: 220 50% 18%;
+    --sidebar-ring: 42 60% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html, body, #root {
+    @apply bg-background text-foreground;
+    font-family: 'Poppins', sans-serif;
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body.login-no-scroll,
+  html:has(body.login-no-scroll) {
+    overflow: hidden;
+  }
+}
+
+@layer utilities {
+  .elite-gradient {
+    background: linear-gradient(135deg, hsl(220 70% 10%) 0%, hsl(220 70% 16%) 100%);
+  }
+
+  .gold-gradient {
+    background: linear-gradient(135deg, hsl(42 60% 55%) 0%, hsl(43 80% 52%) 100%);
+  }
+
+  .gold-text {
+    background: linear-gradient(135deg, hsl(42 60% 55%) 0%, hsl(43 80% 52%) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .geometric-pattern {
+    position: relative;
+  }
+  .geometric-pattern::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0.08;
+    background-image:
+      linear-gradient(30deg, hsl(42 60% 55%) 1px, transparent 1px),
+      linear-gradient(150deg, hsl(42 60% 55%) 1px, transparent 1px),
+      linear-gradient(210deg, hsl(42 60% 55%) 1px, transparent 1px),
+      linear-gradient(330deg, hsl(42 60% 55%) 1px, transparent 1px);
+    background-size: 80px 140px;
+    background-position: 0 0, 40px 70px, 0 0, 40px 70px;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .geometric-pattern > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+

@@ -1,0 +1,49 @@
+# Stack de referência para a Evolution API (auto-hospedada).
+# Repositório: https://github.com/evolution-foundation/evolution-api
+#
+# Coloque este arquivo no servidor e rode:
+#   docker compose up -d
+#
+# Depois aponte um proxy reverso (Nginx / Caddy) para:
+#   https://evolution.assecomassessoria.net.br -> http://localhost:8080
+#
+# A chave AUTHENTICATION_API_KEY deve ser a MESMA salva no Lovable
+# como secret EVOLUTION_API_KEY. A URL pública vai em EVOLUTION_API_URL.
+
+version: "3.8"
+
+services:
+  evolution-db:
+    image: postgres:15-alpine
+    container_name: evolution_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: elite_user
+      POSTGRES_PASSWORD: elite_password_secure
+      POSTGRES_DB: evolution_metadata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  evolution-api:
+    image: evoapicloud/evolution-api:latest
+    container_name: evolution_api_server
+    restart: always
+    depends_on:
+      - evolution-db
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_URL=https://evolution.assecomassessoria.net.br
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://elite_user:elite_password_secure@evolution-db:5432/evolution_metadata?schema=public
+      - AUTHENTICATION_TYPE=apikey
+      - AUTHENTICATION_API_KEY=SUA_CHAVE_MESTRE_AQUI
+      - ERROR_LOGS=true
+    volumes:
+      - evolution_instances:/evolution/instances
+
+volumes:
+  postgres_data:
+  evolution_instances:

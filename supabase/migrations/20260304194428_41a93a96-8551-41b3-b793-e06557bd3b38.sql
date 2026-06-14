@@ -1,0 +1,1 @@
+ALTER TABLE public.crm_construtoras ADD COLUMN link_empreendimento text;
