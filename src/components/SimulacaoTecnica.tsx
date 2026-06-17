@@ -1484,7 +1484,7 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
         {/* MENU LATERAL ESQUERDO (Navegação Principal) */}
         <div className="w-full lg:w-64 shrink-0 flex flex-col gap-2 bg-card p-4 rounded-xl border border-border shadow-sm lg:sticky lg:top-4">
           <div className="pb-2 border-b border-border mb-2">
-            <span className="text-[10px] font-black text-primary uppercase tracking-[2px]">Navegação Principal</span>
+            <span className="text-[10px] font-black text-primary uppercase tracking-[2px]">NAVEGAÇÃO PRINCIPAL</span>
           </div>
 
           <button
@@ -1534,7 +1534,7 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
           </button>
 
           <div className="pb-2 border-b border-border mt-4 mb-2">
-            <span className="text-[10px] font-black text-primary uppercase tracking-[2px]">Navegação Interativa</span>
+            <span className="text-[10px] font-black text-primary uppercase tracking-[2px]">NAVEGAÇÃO INTERATIVA</span>
           </div>
 
           <button
