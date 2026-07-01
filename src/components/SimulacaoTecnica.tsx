@@ -42,6 +42,8 @@ interface CalcResults {
   valorObras: number;
   totalFluxoObrasConst: number;
   percBeneficios: number;
+  totalPosObras: number;
+  prestacaoEstimadaPosObras: number;
 }
 
 interface SimulacaoProps {
@@ -107,6 +109,9 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
     fluxoConstAdicional: "",
     nrParcelasFluxo: "1",
     documentos: "", // editable override for ITBI
+    percMaxPosObras: "",
+    planoMesesPosObras: "0",
+    valorObrasManual: "",
   });
 
   const [logoEmp, setLogoEmp] = useState<string | null>(null);
@@ -163,6 +168,8 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
     valorObras: 0,
     totalFluxoObrasConst: 0,
     percBeneficios: 0,
+    totalPosObras: 0,
+    prestacaoEstimadaPosObras: 0,
   });
 
   const calc = useCallback((updated: typeof fields) => {
@@ -205,8 +212,14 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
     const valorIntermParc = interm / numParcInterm;
 
     const sub = fluxoObras - interm - chv;
+    const percMaxPosObras = parseFloat(updated.percMaxPosObras) || 0;
+    const totalPosObras = lanc * (percMaxPosObras / 100);
+    const planoMesesPosObras = parseInt(updated.planoMesesPosObras) || 0;
+    const prestacaoEstimadaPosObras = planoMesesPosObras > 0 ? totalPosObras / planoMesesPosObras : 0;
+
+    const saldoObras = sub - totalPosObras;
     const parcelas = parseInt(updated.parcelasObras) || 1;
-    const valorObras = sub / parcelas;
+    const valorObras = saldoObras > 0 ? saldoObras / parcelas : 0;
 
     // Bloquear Fluxo Const. Adicional se Ato Cliente < Saldo Entrada
     const saldoEntradaCalc = Math.max(0, entradaConstrutora - atoClienteValor);
@@ -235,13 +248,66 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
       subtotal: sub,
       valorObras,
       totalFluxoObrasConst,
+      totalPosObras,
+      prestacaoEstimadaPosObras,
     });
   }, []);
 
   const updateField = (name: string, value: string) => {
     const updated = { ...fields, [name]: value };
+    if (name !== "valorObrasManual") {
+      updated.valorObrasManual = "";
+    }
     setFields(updated);
     calc(updated);
+  };
+
+  const handleParcelasObrasChange = (val: string) => {
+    const updatedFields = {
+      ...fields,
+      parcelasObras: val,
+      valorObrasManual: "",
+    };
+    setFields(updatedFields);
+    calc(updatedFields);
+  };
+
+  const handleValorObrasManualChange = (rawValue: string) => {
+    const formatted = formatCurrencyInput(rawValue);
+    const valNum = parseCurrency(formatted) || 0;
+    
+    const updatedFields = { ...fields, valorObrasManual: formatted };
+    
+    if (valNum > 0) {
+      const lanc = parseCurrency(fields.lancamento) || 0;
+      const camp = parseCurrency(fields.campanha) || 0;
+      const aprov = parseCurrency(fields.aprovacao) || 0;
+      const fgts = parseCurrency(fields.fgts) || 0;
+      const subs = parseCurrency(fields.subsidio) || 0;
+      const casa = parseCurrency(fields.casa) || 0;
+      const totalAprov = aprov + fgts + subs + casa;
+      const entradaConstrutora = Math.max(0, lanc - totalAprov - camp);
+      const atoClienteValor = parseCurrency(fields.atoCliente) || 0;
+      const excessoAto = Math.max(0, atoClienteValor - entradaConstrutora);
+      const porcentagemSinal = parseFloat(fields.resultPercentual) || 0;
+      const sinalValor = (lanc - camp) * (porcentagemSinal / 100);
+      const fluxoObras = excessoAto > 0 ? 0 : Math.max(0, entradaConstrutora - atoClienteValor - sinalValor);
+      const interm = parseCurrency(fields.intermediarias) || 0;
+      const chv = parseCurrency(fields.chaves) || 0;
+      const sub = fluxoObras - interm - chv;
+      
+      const percMaxPosObras = parseFloat(fields.percMaxPosObras) || 0;
+      const totalPosObras = lanc * (percMaxPosObras / 100);
+      const saldoObras = sub - totalPosObras;
+      
+      if (saldoObras > 0) {
+        const calculatedMonths = Math.max(1, Math.round(saldoObras / valNum));
+        updatedFields.parcelasObras = String(calculatedMonths);
+      }
+    }
+    
+    setFields(updatedFields);
+    calc(updatedFields);
   };
 
   // Notify parent of data changes for dashboard charts
@@ -419,9 +485,16 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
         ? `Parcelas Intermediárias: ${fields.parcInterm}x de ${formatCurrency(results.valorIntermParc)}`
         : "",
       fields.chaves ? `Parcela Chaves: ${fields.chaves}` : "",
-      results.subtotal ? `Saldo Parcelas Obras: ${formatCurrency(results.subtotal)}` : "",
+      results.subtotal ? `Valor Construtora: ${formatCurrency(results.subtotal)}` : "",
       fields.parcelasObras ? `Plano de Obras: ${fields.parcelasObras} meses` : "",
+      parseCurrency(fields.lancamento) && results.subtotal ? `Percentual: ${((results.subtotal / parseCurrency(fields.lancamento)) * 100).toFixed(2)}%` : "",
       results.valorObras ? `Valor Parcelas Obras: ${formatCurrency(results.valorObras)}` : "",
+      results.totalPosObras > 0 ? `\n🔑 *SALDO FINANCIAMENTO PÓS-ENTREGA (PÓS-OBRAS)*` : "",
+      results.totalPosObras > 0 ? `━━━━━━━━━━━━━━━━━━━━━` : "",
+      fields.percMaxPosObras && results.totalPosObras > 0 ? `Percentual Máximo (%): ${fields.percMaxPosObras}%` : "",
+      results.totalPosObras > 0 ? `Total Pós-Obras: ${formatCurrency(results.totalPosObras)}` : "",
+      fields.planoMesesPosObras && results.totalPosObras > 0 ? `Plano (meses): ${fields.planoMesesPosObras}` : "",
+      results.prestacaoEstimadaPosObras > 0 ? `Prestação Estimada: ${formatCurrency(results.prestacaoEstimadaPosObras)}/mês` : "",
       "",
       `_Simulador Corretor de Elite 4.0 - Venda Segura_`,
     ];
@@ -555,9 +628,20 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
               <div class="field"><label>Parcela Chaves</label><span>${fields.chaves || "-"}</span></div>
             </div>
             <div class="row">
-              <div class="field"><label>Saldo Parcelas Construtora</label><span>${formatCurrency(results.subtotal)}</span></div>
-              <div class="field"><label>Plano de Obras</label><span>${fields.parcelasObras} meses</span></div>
-              <div class="field"><label>Valor Parcelas Obras</label><span class="highlight">${formatCurrency(results.valorObras)}</span></div>
+              <div class="field"><label>Valor Construtora</label><span>${formatCurrency(results.subtotal)}</span></div>
+              <div class="field"><label>Plano (meses)</label><span>${fields.parcelasObras} meses</span></div>
+              <div class="field"><label>Percentual</label><span>${(parseCurrency(fields.lancamento) ? (results.subtotal / parseCurrency(fields.lancamento)) * 100 : 0).toFixed(2)}%</span></div>
+              <div class="field"><label>Valor Parcelas</label><span class="highlight">${formatCurrency(results.valorObras)}</span></div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>Saldo Financiamento Pós-Entrega/Plano (Pós-Obras)</h2>
+            <div class="row">
+              <div class="field"><label>Percentual Máximo (%)</label><span>${fields.percMaxPosObras || "0"}%</span></div>
+              <div class="field"><label>Total Pós-Obras</label><span class="highlight">${formatCurrency(results.totalPosObras)}</span></div>
+              <div class="field"><label>Plano (meses)</label><span>${fields.planoMesesPosObras || "0"} meses</span></div>
+              <div class="field"><label>Prestação Estimada</label><span class="highlight">${formatCurrency(results.prestacaoEstimadaPosObras)}/mês</span></div>
             </div>
           </div>
 
@@ -666,14 +750,21 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
     <tr><td>Total Intermediárias</td><td>${interm}</td></tr>
     <tr><td>Parcelas Intermediárias (${nInterm}x)</td><td>${formatCurrency(results.valorIntermParc)}</td></tr>
     <tr><td>Parcela Chaves</td><td>${chaves}</td></tr>
-    <tr><td>Saldo Parcelas Construtora</td><td>${formatCurrency(results.subtotal)}</td></tr>
+    <tr><td>Valor Construtora</td><td>${formatCurrency(results.subtotal)}</td></tr>
+    <tr><td>Percentual (Valor Construtora)</td><td>${(parseCurrency(fields.lancamento) ? (results.subtotal / parseCurrency(fields.lancamento)) * 100 : 0).toFixed(2)}%</td></tr>
     <tr><td>Plano de Obras</td><td>${fields.parcelasObras || "0"} meses</td></tr>
     <tr><td>Valor Parcelas Obras</td><td class="highlight">${formatCurrency(results.valorObras)}</td></tr>
     <tr><td>FGTS</td><td>${fgts}</td></tr>
     <tr><td>Subsídio</td><td>${subsidio}</td></tr>
   </table>
 
-  <h2>4. Aprovação CAIXA</h2>
+  <h2>4. Saldo Financiamento Pós-Entrega/Plano (Pós-Obras)</h2>
+  <table>
+    <tr><th>Percentual Máximo (%)</th><td>${fields.percMaxPosObras || "0"}%</td><th>Total Pós-Obras</th><td class="highlight">${formatCurrency(results.totalPosObras)}</td></tr>
+    <tr><th>Plano (meses)</th><td>${fields.planoMesesPosObras || "0"} meses</td><th>Prestação Estimada</th><td class="highlight">${formatCurrency(results.prestacaoEstimadaPosObras)}/mês</td></tr>
+  </table>
+
+  <h2>5. Aprovação CAIXA</h2>
   <table>
     <tr><th>Simulação CAIXA</th><td>${fields.aprovacao || "—"}</td><th>Parcela Futura</th><td>${fields.parcelaCaixa || "—"}</td></tr>
     <tr><th>Total Aprovação</th><td colspan="3" class="highlight">${formatCurrency(results.totalAprov)}</td></tr>
@@ -724,18 +815,6 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
     const cliente = fields.infoCli || "";
     const cpf = fields.infoCpf || "";
 
-    // Coleta de dados via prompt (mantendo o padrão existente)
-    const clienteEdit = window.prompt("Nome do 1º Proponente:", cliente) || cliente;
-    const cpfEdit = window.prompt("CPF do 1º Proponente:", cpf) || cpf;
-
-    let nomeCliente2 = "";
-    let cpfCliente2 = "";
-    const temConjuge = window.confirm("Deseja incluir Cônjuge/2º Proponente?");
-    if (temConjuge) {
-      nomeCliente2 = window.prompt("Nome do Cônjuge/2º Proponente:") || "";
-      cpfCliente2 = window.prompt("CPF do Cônjuge/2º Proponente:") || "";
-    }
-
     const hoje = new Date();
     const meses = [
       "janeiro",
@@ -751,9 +830,7 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
       "novembro",
       "dezembro",
     ];
-    const cidadeManual = window.prompt("Digite a Cidade para o documento:", "São Paulo");
-    const cidade = cidadeManual || "São Paulo";
-    const dataTexto = `${cidade}, ${hoje.getDate()} de ${meses[hoje.getMonth()]} de ${hoje.getFullYear()}`;
+    const dataTexto = `São Paulo, ${hoje.getDate()} de ${meses[hoje.getMonth()]} de ${hoje.getFullYear()}`;
 
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
@@ -761,66 +838,81 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Autorização Pesquisa Cadastral - ${clienteEdit}</title>
+    <title>Autorização Pesquisa Cadastral - ${cliente}</title>
     <style>
         @page { size: A4; margin: 15mm 20mm; }
-        body { font-family: Arial, sans-serif; font-size: 12px; line-height: 1.4; color: #000; margin: 0; padding: 20px; background-color: #fff; }
-        .document-container { max-width: 800px; margin: 0 auto; }
+        body { font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #000; margin: 0; padding: 20px; background-color: #f3f4f6; }
+        .sheet { max-width: 800px; margin: 0 auto; background: #fff; padding: 32px; box-shadow: 0 10px 25px rgba(0,0,0,.12); border-radius: 8px; position: relative; }
         .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
         .logo { font-size: 24px; font-weight: bold; color: #005ca9; }
-        .sigilo-box { border: 1px solid #000; padding: 5px 10px; text-align: center; font-size: 11px; }
-        .title { text-align: center; font-weight: bold; font-size: 14px; margin-bottom: 20px; }
-        .checkbox-group { margin-bottom: 15px; font-size: 13px; }
+        .sigilo-box { border: 1px solid #000; padding: 5px 10px; text-align: center; font-size: 10px; }
+        .title { text-align: center; font-weight: bold; font-size: 13px; margin-bottom: 20px; }
+        .checkbox-group { margin-bottom: 15px; font-size: 12px; display: flex; gap: 20px; }
+        .checkbox-group label { display: flex; align-items: center; gap: 6px; font-weight: bold; cursor: pointer; }
         .agency-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        .agency-table td { border: 1px solid #000; padding: 5px 10px; height: 30px; vertical-align: top; font-size: 11px; }
-        .section-title { font-weight: bold; margin-bottom: 5px; font-size: 13px; }
+        .agency-table td { border: 1px solid #000; padding: 5px 10px; height: 50px; vertical-align: top; font-size: 10px; }
+        .agency-table td input { border: none; border-bottom: 1px dashed #999; width: 100%; padding: 4px; font-size: 11px; outline: none; margin-top: 4px; background: transparent; }
+        .agency-table td input:focus { border-bottom: 1.5px solid #005ca9; }
+        .section-title { font-weight: bold; margin-bottom: 5px; font-size: 12px; color: #005ca9; text-transform: uppercase; }
         .client-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
         .client-table th, .client-table td { border: 1px solid #000; padding: 8px; }
+        .client-table th { background: #f1f5f9; text-transform: uppercase; font-size: 10px; }
+        .client-table td input { border: none; width: 100%; padding: 4px; font-size: 11px; outline: none; background: transparent; }
         .col-nome { width: 70%; text-align: left; }
         .col-cpf { width: 30%; text-align: center; }
-        .terms-title { font-weight: bold; font-style: italic; margin-bottom: 10px; }
+        .terms-title { font-weight: bold; font-style: italic; margin-bottom: 10px; color: #005ca9; }
         ul, ol { margin-top: 5px; margin-bottom: 15px; padding-left: 25px; }
         ol { list-style-type: lower-alpha; }
         li { margin-bottom: 8px; text-align: justify; }
-        .date-section { margin-top: 30px; margin-bottom: 40px; }
+        .date-section { margin-top: 30px; margin-bottom: 40px; font-size: 12px; }
+        .date-section input { border: none; border-bottom: 1px dashed #999; padding: 2px 5px; font-size: 12px; outline: none; width: 300px; background: transparent; }
+        .date-section input:focus { border-bottom: 1.5px solid #005ca9; }
         .signatures { display: flex; justify-content: space-between; margin-bottom: 40px; }
-        .sign-box { width: 45%; text-align: center; font-size: 11px; }
+        .sign-box { width: 45%; text-align: center; font-size: 10px; }
         .sign-line { border-bottom: 1px solid #000; height: 40px; margin-bottom: 5px; }
         .footer { border-top: 2px solid #005ca9; padding-top: 10px; font-size: 9px; color: #333; text-align: left; line-height: 1.2; }
-        @media print { body { padding: 0; } }
+        .actions { text-align: center; margin-top: 24px; }
+        .actions button { background: #005ca9; color: #fff; font-weight: bold; border: none; padding: 10px 28px; border-radius: 6px; cursor: pointer; font-size: 13px; letter-spacing: 1px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .actions button:hover { opacity: .9; }
+        @media print {
+            body { background: #fff; padding: 0; }
+            .sheet { box-shadow: none; border-radius: 0; padding: 0; }
+            .no-print { display: none !important; }
+            .agency-table td input, .client-table td input, .date-section input { border: none !important; }
+        }
     </style>
 </head>
 <body>
-<div class="document-container">
+<div class="sheet">
     <div class="header">
         <div class="logo">CAIXA</div>
         <div class="sigilo-box">Grau de sigilo<br><strong>#PUBLICO</strong></div>
     </div>
     <div class="title">Autorização para Pesquisa Cadastral de Cliente – Rede Parceira</div>
     <div class="checkbox-group">
-        <div>☐ UL - Unidade Lotérica</div>
-        <div>☑ CCA - Correspondente CAIXA AQUI</div>
+        <label><input type="checkbox"> UL - Unidade Lotérica</label>
+        <label><input type="checkbox" checked> CCA - Correspondente CAIXA AQUI</label>
     </div>
     <table class="agency-table">
         <tr>
-            <td style="width: 20%;">Cód. UL/CCA<br><br></td>
-            <td style="width: 20%;">Cód Ag. Vinc.<br><br></td>
-            <td style="width: 60%;">Nome da Agência<br><br></td>
+            <td style="width: 25%;">Cód. UL/CCA<br><input type="text" value="31.422.572" placeholder="Digite o código"></td>
+            <td style="width: 25%;">Cód Ag. Vinc.<br><input type="text" value="4300" placeholder="Código Agência"></td>
+            <td style="width: 50%;">Nome da Agência<br><input type="text" value="Venda Segura Corretor Elite" placeholder="Nome da Agência"></td>
         </tr>
     </table>
     <div class="section-title">Pesquisa Cadastral do(s) Cliente(es):</div>
     <table class="client-table">
         <tr>
-            <th class="col-nome">Nome do Cliente (es)</th>
+            <th class="col-nome">Nome do Cliente (es) (Dê um clique para editar)</th>
             <th class="col-cpf">CPF/CNPJ Cliente (es)</th>
         </tr>
         <tr>
-            <td class="col-nome">${clienteEdit.toUpperCase()}</td>
-            <td class="col-cpf">${cpfEdit}</td>
+            <td class="col-nome"><input type="text" value="${cliente.toUpperCase()}" placeholder="Nome do 1º Proponente"></td>
+            <td class="col-cpf"><input type="text" value="${cpf}" placeholder="CPF do 1º Proponente"></td>
         </tr>
         <tr>
-            <td class="col-nome">${nomeCliente2.toUpperCase()}</td>
-            <td class="col-cpf">${cpfCliente2}</td>
+            <td class="col-nome"><input type="text" value="" placeholder="Nome do Cônjuge/2º Proponente (Se houver)"></td>
+            <td class="col-cpf"><input type="text" value="" placeholder="CPF do Cônjuge/2º Proponente"></td>
         </tr>
     </table>
     <div class="terms-title">Autorizo a CAIXA ECONÔMICA FEDERAL:</div>
@@ -846,8 +938,7 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
         <li>o BACEN é autorizado a tornar disponíveis às Instituições que podem consultar o SCR BACEN informações consolidadas sobre as minhas operações de crédito e de câmbio, respeitadas as regras estabelecidas pelo próprio BACEN.</li>
     </ol>
     <div class="date-section">
-        ${dataTexto}<br>
-        <span style="font-size: 10px;">Local/Data</span>
+        Local/Data: <input type="text" value="${dataTexto}">
     </div>
     <div class="signatures">
         <div class="sign-box"><div class="sign-line"></div>Assinatura Cliente</div>
@@ -863,8 +954,11 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
         <strong>Ouvidoria:</strong> 0800 725 7474<br>
         caixa.gov.br
     </div>
+
+    <div class="actions no-print">
+        <button onclick="window.print()">Imprimir / Salvar PDF</button>
+    </div>
 </div>
-<script>window.onload=function(){window.print();}</script>
 </body>
 </html>`);
     printWindow.document.close();
@@ -877,85 +971,188 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
     }
     const cliente = fields.infoCli || "";
     const cpf = fields.infoCpf || "";
+    const empreendimento = (fields as any).infoEmpr || fields.descLanc || "";
+    const torre = fields.infoAndar || "";
+    const unidade = fields.infoApto || "";
+    const corretor = fields.infoCreci ? `CRECI ${fields.infoCreci}` : "";
+    const renda = fields.infoRenda || "";
+    const fgts = fields.fgts || "";
+    const subs = fields.subsidio || "";
+    const aprovacao = fields.aprovacao || "";
+    const sinal = fields.atoCliente || "";
+    const avaliacao = fields.avaliacao || fields.lancamento || "";
 
-    try {
-      const existingPdfBytes = await fetch("/docs/FICHA_CADASTRAL.pdf").then((res) => res.arrayBuffer());
-      const pdfDoc = await PDFDocument.load(existingPdfBytes);
-      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const hoje = new Date();
+    const dia = hoje.getDate().toString().padStart(2, "0");
+    const meses = [
+      "JANEIRO",
+      "FEVEREIRO",
+      "MARÇO",
+      "ABRIL",
+      "MAIO",
+      "JUNHO",
+      "JULHO",
+      "AGOSTO",
+      "SETEMBRO",
+      "OUTUBRO",
+      "NOVEMBRO",
+      "DEZEMBRO",
+    ];
+    const mesNome = meses[hoje.getMonth()];
+    const ano = hoje.getFullYear();
 
-      const page = pdfDoc.getPages()[0];
-      const fontSize = 10;
-      const color = rgb(0, 0, 0.6);
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Ficha Cadastral CAIXA - ${cliente}</title>
+    <style>
+        *{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif;}
+        body{background:#f3f4f6;padding:20px;margin:0;color:#0A192F;}
+        .sheet{max-width:820px;margin:0 auto;background:#fff;padding:32px;box-shadow:0 10px 25px rgba(0,0,0,.12);border-radius:8px;}
+        h1{text-align:center;font-size:16px;margin:8px 0 4px;letter-spacing:1px;color:#005ca9;font-weight:bold;}
+        .brand{text-align:center;font-size:20px;font-weight:900;color:#C5A028;letter-spacing:2px;margin-bottom:15px;}
+        h2{font-size:12px;background:#005ca9;color:#fff;padding:6px 10px;margin:16px 0 8px;border-radius:4px;letter-spacing:0.5px;text-transform:uppercase;}
+        .row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px;}
+        .field{flex:1;min-width:150px;display:flex;flex-direction:column;font-size:10px;}
+        .field label{font-weight:bold;margin-bottom:2px;color:#0A192F;text-transform:uppercase;font-size:9px;}
+        .field input, .field select{border:none;border-bottom:1px solid #999;padding:4px 2px;font-size:11px;outline:none;background:transparent;width:100%;}
+        .field input:focus, .field select:focus {border-bottom:1.5px solid #005ca9;}
+        .opts{display:flex;gap:14px;margin-top:4px;font-size:11px;}
+        .opts label{font-weight:normal;display:flex;align-items:center;gap:4px;cursor:pointer;}
+        .footer-row{display:flex;justify-content:space-between;align-items:flex-end;margin-top:32px;gap:20px;}
+        .data-box{font-size:11px;font-weight:bold;}
+        .sig{flex:1;text-align:center;border-top:1px solid #333;padding-top:4px;font-size:10px;max-width:300px;}
+        .actions{text-align:center;margin-top:24px;}
+        .actions button{background:#005ca9;color:#fff;font-weight:bold;border:none;padding:10px 28px;border-radius:6px;cursor:pointer;font-size:13px;letter-spacing:1px;box-shadow:0 4px 6px rgba(0,0,0,0.15);}
+        .actions button:hover{opacity:.9;}
+        @media print{
+            body{background:#fff;padding:0;}
+            .sheet{box-shadow:none;border-radius:0;padding:15px;}
+            .no-print{display:none !important;}
+            .field input, .field select{border-bottom:1px solid #000;background:#fff !important;}
+        }
+    </style>
+</head>
+<body>
+<div class="sheet">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #005ca9; padding-bottom:10px; margin-bottom:15px;">
+        <span style="font-size:24px; font-weight:bold; color:#005ca9;">CAIXA</span>
+        <span style="font-size:12px; font-weight:bold; color:#333;">CRÉDITO HABITACIONAL</span>
+    </div>
+    <h1>FICHA CADASTRAL DE PROPONENTE</h1>
+    <div class="brand">SIMULAÇÃO E FECHAMENTO ELITE</div>
 
-      // DATA - usar data do sistema
-      const hoje = new Date();
-      const dd = hoje.getDate().toString().padStart(2, "0");
-      const mm = (hoje.getMonth() + 1).toString().padStart(2, "0");
-      const yyyy = hoje.getFullYear();
-      page.drawText(dd, { x: 130, y: 585, size: 10, font, color });
-      page.drawText(mm, { x: 158, y: 585, size: 10, font, color });
-      page.drawText(yyyy.toString(), { x: 183, y: 585, size: 10, font, color });
+    <div class="row">
+        <div class="field"><label>Empreendimento:</label><input value="${empreendimento}" placeholder="Empreendimento"></div>
+        <div class="field" style="max-width:100px;"><label>Torre:</label><input value="${torre}" placeholder="Torre"></div>
+        <div class="field" style="max-width:100px;"><label>Unidade:</label><input value="${unidade}" placeholder="Unidade"></div>
+        <div class="field"><label>Corretor Atendimento:</label><input value="${corretor}" placeholder="CRECI"></div>
+    </div>
 
-      // CORRETOR
-      const corretor = fields.infoCreci ? `CRECI ${fields.infoCreci}` : "";
-      page.drawText(corretor, { x: 300, y: 585, size: fontSize, font, color });
+    <h2>1. Identificação do Proponente Principal</h2>
+    <div class="row">
+        <div class="field" style="flex:2;"><label>Nome Completo:</label><input value="${cliente.toUpperCase()}" placeholder="Nome Completo"></div>
+        <div class="field"><label>CPF:</label><input value="${cpf}" placeholder="CPF"></div>
+    </div>
+    <div class="row">
+        <div class="field"><label>RG / Órgão Emissor / UF:</label><input value="" placeholder="RG / SSP-SP"></div>
+        <div class="field"><label>Data de Nascimento:</label><input type="date" value=""></div>
+        <div class="field"><label>Estado Civil:</label>
+            <select>
+                <option value="Solteiro">Solteiro(a)</option>
+                <option value="Casado">Casado(a)</option>
+                <option value="Divorciado">Divorciado(a)</option>
+                <option value="Viúvo">Viúvo(a)</option>
+                <option value="União Estável">União Estável</option>
+            </select>
+        </div>
+        <div class="field"><label>Regime de Bens:</label><input value="" placeholder="Se casado"></div>
+    </div>
+    <div class="row">
+        <div class="field"><label>Nome do Pai:</label><input value="" placeholder="Nome do Pai"></div>
+        <div class="field"><label>Nome da Mãe:</label><input value="" placeholder="Nome da Mãe"></div>
+    </div>
+    <div class="row">
+        <div class="field"><label>Naturalidade / UF:</label><input value="" placeholder="Cidade - UF"></div>
+        <div class="field"><label>Nacionalidade:</label><input value="BRASILEIRA" placeholder="Nacionalidade"></div>
+        <div class="field"><label>Celular / WhatsApp:</label><input value="" placeholder="(00) 00000-0000"></div>
+        <div class="field"><label>E-mail:</label><input type="email" value="" placeholder="exemplo@dominio.com"></div>
+    </div>
 
-      // TORRE
-      page.drawText(fields.infoAndar || "", { x: 468, y: 585, size: fontSize, font, color });
+    <h2>2. Dados Residenciais</h2>
+    <div class="row">
+        <div class="field" style="flex:2;"><label>Endereço Residencial (Rua, Av):</label><input value="" placeholder="Endereço"></div>
+        <div class="field" style="max-width:80px;"><label>Número:</label><input value=""></div>
+        <div class="field"><label>Complemento:</label><input value=""></div>
+    </div>
+    <div class="row">
+        <div class="field"><label>Bairro:</label><input value="" placeholder="Bairro"></div>
+        <div class="field"><label>Cidade:</label><input value="São Paulo" placeholder="Cidade"></div>
+        <div class="field" style="max-width:80px;"><label>UF:</label><input value="SP"></div>
+        <div class="field"><label>CEP:</label><input value="" placeholder="00000-000"></div>
+    </div>
 
-      // UNIDADE
-      page.drawText(fields.infoApto || "", { x: 540, y: 585, size: fontSize, font, color });
+    <h2>3. Dados de Renda e Ocupação</h2>
+    <div class="row">
+        <div class="field"><label>Profissão / Cargo:</label><input value="" placeholder="Profissão"></div>
+        <div class="field"><label>Tipo de Comprovação de Renda:</label>
+            <select>
+                <option value="CLT">CLT (Registro em Carteira)</option>
+                <option value="Autônomo">Autônomo (Extratos Bancários / IR)</option>
+                <option value="Empresário">Empresário (Pro-labore)</option>
+                <option value="Servidor Público">Servidor Público</option>
+                <option value="Aposentado">Aposentado / Pensionista</option>
+            </select>
+        </div>
+        <div class="field"><label>Renda Mensal Bruta (R$):</label><input value="${renda}" placeholder="R$ 0,00"></div>
+    </div>
+    <div class="row">
+        <div class="field"><label>Empresa / Empregador:</label><input value="" placeholder="Nome da Empresa"></div>
+        <div class="field"><label>CNPJ Empregador:</label><input value="" placeholder="CNPJ"></div>
+        <div class="field"><label>Data de Admissão:</label><input type="date"></div>
+    </div>
+    <div class="row">
+        <div class="field"><label>Possui 3 anos de trabalho under regime do FGTS (soma de todos os períodos)?</label>
+            <div class="opts">
+                <label><input type="radio" name="fgts_time" checked> SIM</label>
+                <label><input type="radio" name="fgts_time"> NÃO</label>
+            </div>
+        </div>
+        <div class="field"><label>Possui dependente ou mais de um proponente?</label>
+            <div class="opts">
+                <label><input type="radio" name="dep_choice"> SIM</label>
+                <label><input type="radio" name="dep_choice" checked> NÃO</label>
+            </div>
+        </div>
+    </div>
 
-      // NOME
-      page.drawText(cliente, { x: 100, y: 567, size: fontSize, font, color });
+    <h2>4. Resumo da Operação Proposta</h2>
+    <div class="row">
+        <div class="field"><label>Valor de Venda (R$):</label><input value="${avaliacao}" placeholder="R$ 0,00"></div>
+        <div class="field"><label>Valor de Financiamento (R$):</label><input value="${aprovacao}" placeholder="R$ 0,00"></div>
+        <div class="field"><label>FGTS a utilizar (R$):</label><input value="${fgts}" placeholder="R$ 0,00"></div>
+    </div>
+    <div class="row">
+        <div class="field"><label>Subsídio CAIXA (R$):</label><input value="${subs}" placeholder="R$ 0,00"></div>
+        <div class="field"><label>Sinal / Recursos Próprios (R$):</label><input value="${sinal}" placeholder="R$ 0,00"></div>
+        <div class="field"><label>Status do Cadastro:</label><input value="SIMULAÇÃO COMPLETA" style="font-weight:bold; color:#005ca9;"></div>
+    </div>
 
-      // CPF
-      page.drawText(cpf, { x: 90, y: 525, size: fontSize, font, color });
+    <div class="footer-row">
+        <div class="data-box">${dia} DE ${mesNome} DE ${ano}</div>
+        <div class="sig">Assinatura do Proponente</div>
+    </div>
 
-      // VALOR IMÓVEL - formatado R$ com decimais
-      const avaliacaoVal = parseCurrency(fields.avaliacao);
-      if (avaliacaoVal > 0) {
-        page.drawText(formatCurrency(avaliacaoVal), { x: 140, y: 385, size: fontSize, font, color });
-      }
-
-      // VALOR FGTS - formatado R$ com decimais
-      const fgtsVal = parseCurrency(fields.fgts);
-      if (fgtsVal > 0) {
-        page.drawText(formatCurrency(fgtsVal), { x: 440, y: 385, size: fontSize, font, color });
-      }
-
-      // Local e data no rodapé
-      const meses = [
-        "janeiro",
-        "fevereiro",
-        "março",
-        "abril",
-        "maio",
-        "junho",
-        "julho",
-        "agosto",
-        "setembro",
-        "outubro",
-        "novembro",
-        "dezembro",
-      ];
-      const localData = `_________, ${hoje.getDate()} de ${meses[hoje.getMonth()]} de ${hoje.getFullYear()}`;
-      page.drawText(localData, { x: 180, y: 118, size: 9, font, color: rgb(0, 0, 0) });
-
-      const pdfBytes = await pdfDoc.save();
-      const blob = new Blob([pdfBytes as unknown as ArrayBuffer], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `FICHA_CADASTRAL_${cliente.replace(/\s+/g, "_") || "cliente"}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Erro ao gerar Ficha Cadastral:", err);
-      alert("Erro ao gerar a Ficha Cadastral. Tente novamente.");
-    }
+    <div class="actions no-print">
+        <button onclick="window.print()">Imprimir / Salvar PDF</button>
+    </div>
+</div>
+</body>
+</html>`);
+    w.document.close();
   };
 
   const handleFichaCadastralEditavel = () => {
@@ -1224,193 +1421,110 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
       return;
     }
 
-    // Coletar todos os dados ANTES de gerar o PDF, na ordem: Nome, CPF, RG
-    let cliente = fields.infoCli || "";
-    if (!cliente) {
-      cliente = window.prompt("Nome do Cliente:", "") || "";
-    }
-    let cpf = fields.infoCpf || "";
-    if (!cpf) {
-      cpf = window.prompt("CPF do Cliente:", "") || "";
-    }
-    const rgValue = window.prompt("RG do Cliente (para a Carta de Cancelamento):", "") || "";
-    const corrAnterior = window.prompt("Nome do Correspondente Anterior:", "") || "";
-    const cidadeManual = window.prompt("Digite a Cidade:", "São Paulo") || "São Paulo";
+    const cliente = fields.infoCli || "";
+    const cpf = fields.infoCpf || "";
 
-    try {
-      const pdfDoc = await PDFDocument.create();
-      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-      const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const hoje = new Date();
+    const meses = [
+      "janeiro",
+      "fevereiro",
+      "março",
+      "abril",
+      "maio",
+      "junho",
+      "julho",
+      "agosto",
+      "setembro",
+      "outubro",
+      "novembro",
+      "dezembro",
+    ];
+    const dataTexto = `São Paulo, ${hoje.getDate()} de ${meses[hoje.getMonth()]} de ${hoje.getFullYear()}`;
 
-      const page = pdfDoc.addPage([595.28, 841.89]); // A4
-      const { width } = page.getSize();
-      const margin = 60;
-      const textColor = rgb(0, 0, 0);
-      let y = 780;
-
-      const drawCentered = (text: string, yPos: number, size: number, useBold = false) => {
-        const f = useBold ? fontBold : font;
-        const tw = f.widthOfTextAtSize(text, size);
-        page.drawText(text, { x: (width - tw) / 2, y: yPos, size, font: f, color: textColor });
-      };
-
-      const drawLine = (label: string, value: string, yPos: number) => {
-        const labelW = font.widthOfTextAtSize(label, 11);
-        page.drawText(label, { x: margin, y: yPos, size: 11, font, color: textColor });
-        if (value) {
-          page.drawText(value, { x: margin + labelW + 2, y: yPos, size: 11, font: fontBold, color: rgb(0, 0, 0.5) });
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Carta de Cancelamento - ${cliente}</title>
+    <style>
+        @page { size: A4; margin: 25mm 20mm; }
+        *{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif;}
+        body{background:#f3f4f6;padding:40px 20px;margin:0;color:#000;font-size:12px;line-height:1.6;}
+        .sheet{max-width:800px;margin:0 auto;background:#fff;padding:50px;box-shadow:0 10px 25px rgba(0,0,0,.12);border-radius:8px;}
+        .header-title{text-align:center;font-weight:bold;font-size:15px;margin-bottom:8px;text-transform:uppercase;}
+        .header-subtitle{text-align:center;font-weight:bold;font-size:12px;margin-bottom:20px;color:#333;}
+        .subject-box{margin-top:20px;margin-bottom:30px;font-weight:bold;font-size:12px;border-bottom:1px solid #ddd;padding-bottom:10px;}
+        p{text-align:justify;margin-bottom:16px;text-indent:30px;}
+        .field-inline{border:none;border-bottom:1px dashed #777;padding:2px 4px;font-size:12px;font-weight:bold;outline:none;background:transparent;color:#005ca9;}
+        .field-inline:focus{border-bottom:1.5px solid #005ca9;}
+        .letter-body{margin-top:20px;}
+        .signature-section{margin-top:60px;display:flex;flex-direction:column;align-items:center;text-align:center;}
+        .sig-line{border-top:1px solid #000;width:300px;margin-top:40px;margin-bottom:6px;}
+        .actions{text-align:center;margin-top:40px;}
+        .actions button{background:#005ca9;color:#fff;font-weight:bold;border:none;padding:12px 30px;border-radius:6px;cursor:pointer;font-size:13px;letter-spacing:1px;box-shadow:0 4px 6px rgba(0,0,0,0.15);}
+        .actions button:hover{opacity:.9;}
+        @media print{
+            body{background:#fff;padding:0;}
+            .sheet{box-shadow:none;border-radius:0;padding:10px;}
+            .no-print{display:none !important;}
+            .field-inline{border-bottom:none !important;}
         }
-        const totalW = width - margin * 2;
-        const filledW = labelW + (value ? fontBold.widthOfTextAtSize(value, 11) : 0) + 2;
-        const lineStart = margin + filledW + 2;
-        if (lineStart < margin + totalW) {
-          page.drawLine({
-            start: { x: lineStart, y: yPos - 2 },
-            end: { x: margin + totalW, y: yPos - 2 },
-            thickness: 0.5,
-            color: rgb(0.3, 0.3, 0.3),
-          });
-        }
-      };
+    </style>
+</head>
+<body>
+<div class="sheet">
+    <div class="header-title">À CAIXA ECONÔMICA FEDERAL</div>
+    <div class="header-subtitle">A/C: Correspondente Caixa Aqui (CCA) / Gerência de Habitação</div>
 
-      // Header
-      drawCentered("À CAIXA ECONÔMICA FEDERAL", y, 14, true);
-      y -= 30;
-      drawCentered("A/C: Correspondente Caixa Aqui (CCA) / Gerência de Habitação", y, 10, true);
-      y -= 25;
-      drawCentered("Assunto: Solicitação de Cancelamento de Avaliação/Cadastro SICAQ", y, 10, true);
-      y -= 35;
+    <div class="subject-box">
+        Assunto: Solicitação de Cancelamento de Avaliação / Cadastro SICAQ
+    </div>
 
-      // Paragraph 1
-      const p1a = "Eu, ";
-      const p1aW = font.widthOfTextAtSize(p1a, 11);
-      page.drawText(p1a, { x: margin, y, size: 11, font, color: textColor });
-      if (cliente) {
-        page.drawText(cliente, { x: margin + p1aW, y, size: 11, font: fontBold, color: rgb(0, 0, 0.5) });
-      }
-      const nameEndX = margin + p1aW + (cliente ? fontBold.widthOfTextAtSize(cliente, 11) : 0);
-      page.drawLine({
-        start: { x: nameEndX + 2, y: y - 2 },
-        end: { x: width - margin, y: y - 2 },
-        thickness: 0.5,
-        color: rgb(0.3, 0.3, 0.3),
-      });
+    <div class="letter-body">
+        <p>
+            Eu, <input type="text" class="field-inline" style="width:280px;" value="${cliente.toUpperCase()}" placeholder="Nome do Cliente">,
+            inscrito(a) no CPF sob o nº <input type="text" class="field-inline" style="width:140px;" value="${cpf}" placeholder="000.000.000-00">
+            e portador(a) do RG nº <input type="text" class="field-inline" style="width:120px;" value="" placeholder="Digite o RG">, 
+            venho por meio desta solicitar formalmente o <strong>CANCELAMENTO DE TODAS AS AVALIAÇÕES DE RISCO DE CADASTROS</strong> 
+            realizados em meu nome no sistema SICAQ (CCA), vinculados ao Correspondente Caixa Aqui 
+            <input type="text" class="field-inline" style="width:250px;" value="" placeholder="Nome do Correspondente Anterior"> (Correspondente Anterior).
+        </p>
 
-      y -= 20;
-      drawLine("inscrito(a) no CPF sob o nº ", cpf, y);
+        <p>
+            Declaro que desejo realizar a desvinculação da referida unidade/proposta para dar continuidade ao processo através de outro Correspondente Caixa Aqui ou agência física da Caixa Econômica Federal, sem impedimentos para que seja realizada uma nova avaliação.
+        </p>
 
-      y -= 20;
-      drawLine("e RG nº ", rgValue, y);
+        <p>
+            Estou plenamente ciente de que as avaliações no SICAQ têm prazo de validade determinado (geralmente de 180 dias) e que a alteração ou reapresentação de dados cadastrais pode resultar na necessidade de nova análise documental.
+        </p>
 
-      y -= 20;
-      const wrapText = (text: string, maxWidth: number, f: typeof font, size: number) => {
-        const words = text.split(" ");
-        const lines: string[] = [];
-        let current = "";
-        for (const word of words) {
-          const test = current ? current + " " + word : word;
-          if (f.widthOfTextAtSize(test, size) > maxWidth) {
-            lines.push(current);
-            current = word;
-          } else {
-            current = test;
-          }
-        }
-        if (current) lines.push(current);
-        return lines;
-      };
+        <p>
+            Solicito que este cancelamento seja efetivado no sistema com a maior brevidade possível, a fim de evitar atrasos no andamento do meu financiamento habitacional.
+        </p>
+        
+        <p style="text-indent:0; text-align:center; margin-top:40px;">
+            <input type="text" class="field-inline" style="width:300px; text-align:center;" value="${dataTexto}">
+        </p>
+    </div>
 
-      const bodyText1 =
-        "venho por meio desta solicitar formalmente o CANCELAMENTO DE TODAS AS AVALIAÇÕES DE RISCO DE CADASTROS realizados em meu nome no sistema SICAQ (CCA), vinculados ao Correspondente";
-      const lines1 = wrapText(bodyText1, width - margin * 2, font, 11);
-      for (const line of lines1) {
-        page.drawText(line, { x: margin, y, size: 11, font, color: textColor });
-        y -= 16;
-      }
+    <div class="signature-section">
+        <div class="sig-line"></div>
+        <div style="font-weight:bold; font-size:12px;">${cliente.toUpperCase() || "[NOME DO CLIENTE]"}</div>
+        <div style="font-size:11px; color:#555; margin-top:4px;">Proponente Comprador(a)</div>
+        <div style="margin-top:15px; font-size:11px;">
+            Telefone de Contato: <input type="text" class="field-inline" style="width:140px; text-align:center;" value="" placeholder="(00) 00000-0000">
+        </div>
+    </div>
 
-      // Correspondente anterior field
-      drawLine("Correspondente ", corrAnterior + " (ANTERIOR).", y);
-      y -= 28;
-
-      const bodyText2 =
-        "Declaro que desejo realizar a desvinculação da referida unidade/proposta para dar continuidade ao processo através de outro Correspondente Caixa Aqui ou agência física, sem impedimentos de nova avaliação.";
-      const lines2 = wrapText(bodyText2, width - margin * 2, font, 11);
-      for (const line of lines2) {
-        page.drawText(line, { x: margin, y, size: 11, font, color: textColor });
-        y -= 16;
-      }
-      y -= 12;
-
-      const bodyText3 =
-        "Estou ciente de que as avaliações no SICAQ têm prazo de validade (geralmente 180 dias) e que a alteração de dados pode resultar em necessidade de nova análise documental.";
-      const lines3 = wrapText(bodyText3, width - margin * 2, font, 11);
-      for (const line of lines3) {
-        page.drawText(line, { x: margin, y, size: 11, font, color: textColor });
-        y -= 16;
-      }
-      y -= 12;
-
-      page.drawText("Solicito que este cancelamento seja efetivado com a maior brevidade possível.", {
-        x: margin,
-        y,
-        size: 11,
-        font,
-        color: textColor,
-      });
-      y -= 40;
-
-      // Local e Data
-      const hoje = new Date();
-      const meses = [
-        "janeiro",
-        "fevereiro",
-        "março",
-        "abril",
-        "maio",
-        "junho",
-        "julho",
-        "agosto",
-        "setembro",
-        "outubro",
-        "novembro",
-        "dezembro",
-      ];
-      const dataTexto = `${cidadeManual}, ${hoje.getDate()} de ${meses[hoje.getMonth()]} de ${hoje.getFullYear()}.`;
-      drawCentered(dataTexto, y, 11, false);
-      y -= 50;
-
-      // Signature line
-      page.drawLine({
-        start: { x: margin + 60, y },
-        end: { x: width - margin - 60, y },
-        thickness: 0.5,
-        color: textColor,
-      });
-      y -= 14;
-      drawCentered("[Assinatura do Cliente]", y, 9, false);
-      y -= 30;
-
-      // Nome completo
-      drawLine("[Nome Completo do Cliente] ", cliente, y);
-      y -= 25;
-
-      // Telefone
-      drawLine("[Telefone de Contato] ", "", y);
-
-      const pdfBytes = await pdfDoc.save();
-      const blob = new Blob([pdfBytes as unknown as ArrayBuffer], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `CARTA_CANCELAMENTO_${cliente.replace(/\s+/g, "_") || "cliente"}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Erro ao gerar Carta de Cancelamento:", err);
-      alert("Erro ao gerar a Carta de Cancelamento. Tente novamente.");
-    }
+    <div class="actions no-print">
+        <button onclick="window.print()">Imprimir / Salvar PDF</button>
+    </div>
+</div>
+</body>
+</html>`);
+    w.document.close();
   };
 
   const handleClearForm = () => {
@@ -1966,36 +2080,129 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-border">
-                  <div>
-                    <label className="block text-[9px] font-semibold text-muted-foreground mb-1 uppercase">
-                      Saldo Construtora
-                    </label>
-                    <div className="px-2 py-2.5 border border-border rounded-md text-xs font-bold text-primary bg-[#F8FAFC] truncate" title={formatCurrency(results.subtotal)}>
-                      {formatCurrency(results.subtotal)}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-[9px] font-semibold text-muted-foreground mb-1 uppercase">
-                      Plano (meses)
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      value={fields.parcelasObras}
-                      onChange={(e) => updateField("parcelasObras", e.target.value)}
-                      className="w-full px-2 py-2.5 border border-border rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold bg-[#F8FAFC]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[9px] font-semibold text-muted-foreground mb-1 uppercase">
-                      Valor Parcelas
-                    </label>
-                    <div className="px-2 py-2.5 border-2 border-gold/70 rounded-md text-xs font-bold text-primary bg-gold/5 truncate" title={formatCurrency(results.valorObras)}>
-                      {formatCurrency(results.valorObras)}
-                    </div>
-                  </div>
-                </div>
+                {(() => {
+                  const lancVal = parseCurrency(fields.lancamento) || 0;
+                  const subtotalPercent = lancVal > 0 ? (results.subtotal / lancVal) * 100 : 0;
+                  return (
+                    <>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 pt-3 border-t border-border">
+                        <div>
+                          <label className="block text-[10px] font-extrabold text-muted-foreground mb-1 uppercase tracking-wider truncate" title="Valor Construtora">
+                            Valor Construtora
+                          </label>
+                          <div className="px-2 py-2.5 border border-border rounded-md text-xs font-bold text-primary bg-[#F8FAFC] truncate" title={formatCurrency(results.subtotal)}>
+                            {formatCurrency(results.subtotal)}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-extrabold text-muted-foreground mb-1 uppercase tracking-wider truncate" title="Plano (meses)">
+                            Plano (meses)
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            value={fields.parcelasObras}
+                            onChange={(e) => handleParcelasObrasChange(e.target.value)}
+                            className="w-full px-2 py-2 border border-border rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold bg-[#F8FAFC]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-extrabold text-muted-foreground mb-1 uppercase tracking-wider truncate" title="Percentual">
+                            Percentual
+                          </label>
+                          <div className="px-2 py-2.5 border border-border rounded-md text-xs font-bold text-primary bg-[#F8FAFC] truncate" title={`${subtotalPercent.toFixed(2)}%`}>
+                            {subtotalPercent.toFixed(2)}%
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-extrabold text-muted-foreground mb-1 uppercase tracking-wider truncate" title="Valor Parcelas">
+                            Valor Parcelas
+                          </label>
+                          <input
+                            type="text"
+                            value={fields.valorObrasManual || formatCurrency(results.valorObras)}
+                            onChange={(e) => handleValorObrasManualChange(e.target.value)}
+                            className="w-full px-2 py-2 border-2 border-gold/70 rounded-md text-xs font-bold text-primary bg-gold/5 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold"
+                            title="Você pode digitar o valor da parcela para recalcular o plano de meses"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Saldo Financiamento Pós-Entrega/Plano (Pós-Obras) */}
+                      <div className="border-t border-border pt-4 mt-4 space-y-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-gold"></span>
+                          <h4 className="text-xs font-extrabold text-primary uppercase tracking-wider">
+                            Saldo Financiamento Pós-Entrega/Plano (Pós-Obras)
+                          </h4>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-extrabold text-muted-foreground mb-1 uppercase tracking-wider truncate" title="Percentual Máximo (%)">
+                              Percentual Máximo (%)
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              placeholder="0.00"
+                              value={fields.percMaxPosObras}
+                              onChange={(e) => updateField("percMaxPosObras", e.target.value)}
+                              className="w-full px-2 py-2 border border-border rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold bg-[#F8FAFC]"
+                            />
+                            <div className="flex gap-1 mt-1">
+                              {[5, 10, 15, 20].map((pct) => (
+                                <button
+                                  key={pct}
+                                  type="button"
+                                  onClick={() => updateField("percMaxPosObras", String(pct))}
+                                  className="px-1 py-0.5 bg-muted hover:bg-gold/20 hover:text-primary rounded text-[9px] font-bold text-muted-foreground transition-all"
+                                >
+                                  {pct}%
+                                </button>
+                              ))}
+                            </div>
+                            <span className="text-[8px] text-muted-foreground block mt-1 leading-tight">
+                              Do Lançamento ({formatCurrency(lancVal)})
+                            </span>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-extrabold text-muted-foreground mb-1 uppercase tracking-wider truncate" title="Total Pós-Obras">
+                              Total Pós-Obras
+                            </label>
+                            <div className="px-2 py-2.5 border border-border rounded-md text-xs font-bold text-primary bg-[#F8FAFC] truncate" title={formatCurrency(results.totalPosObras)}>
+                              {formatCurrency(results.totalPosObras)}
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-extrabold text-muted-foreground mb-1 uppercase tracking-wider truncate" title="Plano (meses)">
+                              Plano (meses)
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              placeholder="0"
+                              value={fields.planoMesesPosObras}
+                              onChange={(e) => updateField("planoMesesPosObras", e.target.value)}
+                              className="w-full px-2 py-2 border border-border rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold bg-[#F8FAFC]"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-extrabold text-primary mb-1 uppercase tracking-wider truncate text-gold" title="Prestação Estimada">
+                              Prestação Estimada
+                            </label>
+                            <div className="px-2 py-2.5 border-2 border-gold/70 rounded-md text-xs font-bold text-primary bg-gold/5 truncate" title={`${formatCurrency(results.prestacaoEstimadaPosObras)}/mês`}>
+                              {formatCurrency(results.prestacaoEstimadaPosObras)}/mês
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
 
               {/* Bloco 4: Dashboard Interativo */}
