@@ -2,6 +2,107 @@
 <html lang="pt-br" translate="no">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Global error handler to catch chunk loading/syntax/rendering errors and auto-recovery
+      window.addEventListener('error', function(e) {
+        console.error('Global error detected:', e);
+        var message = e.message || '';
+        var filename = e.filename || '';
+        var isChunkOrLoadError = (
+          message.indexOf('chunk') > -1 || 
+          message.indexOf('Loading chunk') > -1 || 
+          message.indexOf('Unexpected token') > -1 ||
+          message.indexOf('Failed to fetch dynamically imported module') > -1 ||
+          filename.indexOf('assets/') > -1
+        );
+        if (isChunkOrLoadError) {
+          console.warn('Chunk loading or cache mismatch error detected! Automatically recovering by clearing Service Worker and Cache Storage...');
+          
+          // Unregister all active service workers
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+              for (var i = 0; i < registrations.length; i++) {
+                registrations[i].unregister();
+              }
+            });
+          }
+          
+          // Clear cache storage completely
+          if ('caches' in window) {
+            caches.keys().then(function(keys) {
+              keys.forEach(function(key) {
+                caches.delete(key);
+              });
+            });
+          }
+          
+          // Delay reload to let registrations unregister and caches clear
+          setTimeout(function() {
+            window.location.reload();
+          }, 400);
+        }
+      }, true);
+
+      // Polyfill for blocked or insecure localStorage/sessionStorage (common in mobile WebViews and private modes)
+      (function() {
+        var storageAvailable = true;
+        try {
+          var testKey = '__storage_test__';
+          window.localStorage.setItem(testKey, testKey);
+          window.localStorage.removeItem(testKey);
+        } catch (e) {
+          storageAvailable = false;
+        }
+
+        if (!storageAvailable) {
+          console.warn('LocalStorage/SessionStorage is blocked or throwing errors. Polyfilling with secure in-memory storage.');
+          var makeInMemoryStorage = function() {
+            var store = {};
+            return {
+              getItem: function(key) {
+                return store.hasOwnProperty(key) ? store[key] : null;
+              },
+              setItem: function(key, value) {
+                store[key] = String(value);
+              },
+              removeItem: function(key) {
+                delete store[key];
+              },
+              clear: function() {
+                store = {};
+              },
+              key: function(index) {
+                var keys = Object.keys(store);
+                return keys[index] || null;
+              },
+              get length() {
+                return Object.keys(store).length;
+              }
+            };
+          };
+
+          try {
+            Object.defineProperty(window, 'localStorage', {
+              value: makeInMemoryStorage(),
+              writable: true,
+              configurable: true
+            });
+          } catch (e) {
+            window.localStorage = makeInMemoryStorage();
+          }
+
+          try {
+            Object.defineProperty(window, 'sessionStorage', {
+              value: makeInMemoryStorage(),
+              writable: true,
+              configurable: true
+            });
+          } catch (e) {
+            window.sessionStorage = makeInMemoryStorage();
+          }
+        }
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Simulador Corretor de Elite 4.0 | Ferramenta do Corretor</title>
     <meta name="description" content="Ferramenta profissional, para corretores, Imobiliárias e construtoras, simulação técnica, pró-soluto com limitador. Marketing e muito mais, confira.">
@@ -32,8 +133,7 @@
         "@context": "https://schema.org",
         "@type": "WebApplication",
         "name": "SIMULADOR CORRETOR DE ELITE 4.0",
-        "description": "Ferramenta profissional,Corretores de alta performance,
-        Imobiliárias e Construtoras, simulação técnica em segundos e gestão de cadastro",
+        "description": "Ferramenta profissional, Corretores de alta performance, Imobiliárias e Construtoras, simulação técnica em segundos e gestão de cadastro",
         "url": "https://www.simuladorhabitacional.simuladorcorretorelite.com.br",
                 "applicationCategory": "BusinessApplication",
         "operatingSystem": "Web",

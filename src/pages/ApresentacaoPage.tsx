@@ -11,7 +11,7 @@ const slides = [
     content: (
       <div className="flex flex-col items-center justify-center h-full text-center gap-4">
         <img
-          src="https://pub-a3cfd193eb6748ec96b423de3caf804f.r2.dev/logo-elite.jpg"
+          src="/logo-elite.jpg"
           alt="Simulador Corretor de Elite"
           className="w-48 h-48 rounded-2xl shadow-2xl object-cover"
         />
@@ -1242,7 +1242,7 @@ const slides = [
     subtitle: "Comece agora",
     content: (
       <div className="flex flex-col items-center justify-center h-full text-center gap-6">
-        <img src="https://pub-a3cfd193eb6748ec96b423de3caf804f.r2.dev/logo-elite.jpg" alt="Elite" className="w-28 h-28 rounded-2xl shadow-2xl object-cover" />
+        <img src="/logo-elite.jpg" alt="Elite" className="w-28 h-28 rounded-2xl shadow-2xl object-cover" />
         <div>
           <h2 className="text-3xl font-extrabold uppercase tracking-wider" style={{ color: "hsl(42 60% 55%)" }}>
             Comece Agora!
@@ -1332,7 +1332,7 @@ const ApresentacaoPage = () => {
     // Load logo as base64
     let logoBase64 = "";
     try {
-      const resp = await fetch("https://pub-a3cfd193eb6748ec96b423de3caf804f.r2.dev/logo-elite.jpg");
+      const resp = await fetch("/logo-elite.jpg");
       const blob = await resp.blob();
       logoBase64 = await new Promise<string>((resolve) => {
         const reader = new FileReader();
@@ -3078,7 +3078,7 @@ const ApresentacaoPage = () => {
               className="flex items-center gap-3 mb-2 pb-2"
               style={{ borderBottom: "2px solid hsl(42 60% 55% / 0.3)" }}
             >
-              <img src="https://pub-a3cfd193eb6748ec96b423de3caf804f.r2.dev/logo-elite.jpg" alt="Elite" className="w-10 h-10 rounded object-cover" />
+              <img src="/logo-elite.jpg" alt="Elite" className="w-10 h-10 rounded object-cover" />
               <div>
                 <h2 className="text-lg font-extrabold uppercase tracking-wider" style={{ color: "hsl(42 60% 55%)" }}>
                   {slide.title}

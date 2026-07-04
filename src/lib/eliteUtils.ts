@@ -225,6 +225,7 @@ export async function createSession(email: string, deviceFingerprint?: string): 
     if (error || !data?.success) return null;
     const token = data.session_token;
     setSessionToken(token);
+    setUserEmail(email); // Automatically persist the email associated with the successfully created session
     return token;
   } catch {
     return null;
@@ -607,3 +608,96 @@ export function exportCSV(vendas: Venda[]): void {
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
+
+// === REGULAMENTO / MOTOR DE CÁLCULO MCMV DINÂMICO ===
+export interface McmvRule {
+  faixa: string;
+  rendaMin: number;
+  rendaMax: number;
+  taxaMin: number;
+  taxaMax: number;
+  limiteImovelMin: number;
+  limiteImovelMax: number;
+  subsidioMax: number;
+}
+
+export const DEFAULT_MCMV_RULES: McmvRule[] = [
+  {
+    faixa: "Faixa 1",
+    rendaMin: 0,
+    rendaMax: 3200,
+    taxaMin: 4.00,
+    taxaMax: 4.50,
+    limiteImovelMin: 0,
+    limiteImovelMax: 275000,
+    subsidioMax: 55000,
+  },
+  {
+    faixa: "Faixa 2",
+    rendaMin: 3200.01,
+    rendaMax: 5000,
+    taxaMin: 4.75,
+    taxaMax: 6.50,
+    limiteImovelMin: 275000,
+    limiteImovelMax: 400000,
+    subsidioMax: 55000,
+  },
+  {
+    faixa: "Faixa 3",
+    rendaMin: 5000.01,
+    rendaMax: 9600,
+    taxaMin: 7.66,
+    taxaMax: 7.66,
+    limiteImovelMin: 0,
+    limiteImovelMax: 400000,
+    subsidioMax: 0,
+  },
+  {
+    faixa: "Faixa 4 (Classe Média)",
+    rendaMin: 9600.01,
+    rendaMax: 13000,
+    taxaMin: 10.00,
+    taxaMax: 10.50,
+    limiteImovelMin: 0,
+    limiteImovelMax: 600000,
+    subsidioMax: 0,
+  }
+];
+
+export function getMcmvRules(): McmvRule[] {
+  const stored = localStorage.getItem('mcmv_rules');
+  if (stored) {
+    try {
+      return JSON.parse(stored);
+    } catch (e) {
+      console.error("Error parsing stored mcmv rules", e);
+    }
+  }
+  return DEFAULT_MCMV_RULES;
+}
+
+export function saveMcmvRules(rules: McmvRule[]): void {
+  localStorage.setItem('mcmv_rules', JSON.stringify(rules));
+}
+
+export function getMcmvRateForRenda(renda: number, rules: McmvRule[]): { taxaNominal: number; faixa: string; rule: McmvRule | null } {
+  // Encontra a faixa correspondente
+  const rule = rules.find(r => renda >= r.rendaMin && renda <= r.rendaMax);
+  if (rule) {
+    // Interpolação proporcional se taxaMin for diferente de taxaMax
+    if (rule.taxaMin === rule.taxaMax) {
+      return { taxaNominal: rule.taxaMin / 100, faixa: rule.faixa, rule };
+    }
+    const rangeRenda = rule.rendaMax - rule.rendaMin;
+    if (rangeRenda <= 0) {
+      return { taxaNominal: rule.taxaMin / 100, faixa: rule.faixa, rule };
+    }
+    const ratio = (renda - rule.rendaMin) / rangeRenda;
+    const taxa = rule.taxaMin + ratio * (rule.taxaMax - rule.taxaMin);
+    return { taxaNominal: taxa / 100, faixa: rule.faixa, rule };
+  }
+  
+  // SBPE ou fora das faixas
+  return { taxaNominal: 0.115, faixa: "SBPE - Recursos SBPE", rule: null };
+}
+

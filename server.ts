@@ -20,6 +20,14 @@ async function startServer() {
       proxyReqOpts.headers["origin"] = SPOOFED_ORIGIN;
       return proxyReqOpts;
     },
+    userResHeaderDecorator: (headers: any, userReq: any) => {
+      const origin = userReq.headers.origin || userReq.headers.Origin;
+      if (origin) {
+        headers["access-control-allow-origin"] = origin;
+        headers["Access-Control-Allow-Origin"] = origin;
+      }
+      return headers;
+    },
   };
 
   app.use(

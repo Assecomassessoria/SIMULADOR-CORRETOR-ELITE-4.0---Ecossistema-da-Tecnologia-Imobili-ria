@@ -11,6 +11,7 @@ import { AlertCircle, CheckCircle2, DollarSign, TrendingUp, MessageSquare, Print
 import { formatCurrency, calculateSimulation } from "@/lib/simulatorCalc";
 import PercentualAdjustmentPanel from "@/components/PercentualAdjustmentPanel";
 import { jsPDF } from "jspdf";
+import { getMcmvRules, getMcmvRateForRenda } from "@/lib/eliteUtils";
 
 const formatIntegerToBr = (value: string): string => {
   const digits = value.replace(/\D/g, "");
@@ -255,6 +256,7 @@ export default function SimulacaoCustom() {
     prazoMeses?: number;
     prazoAnos?: number;
     parcelaMaxima?: string;
+    parcelaPrice?: string;
     valorFinanciado?: string;
     valorImovel?: string;
     valorEntrada?: string;
@@ -263,8 +265,13 @@ export default function SimulacaoCustom() {
     taxaJurosEfetiva?: string;
     modalidade?: string;
     sistemaAmortizacao?: string;
+    ultimaParcelaSac?: string;
+    totalPagoSac?: string;
+    totalPagoPrice?: string;
     erro?: string;
   } | null>(null);
+
+  const [showPriceSacComp, setShowPriceSacComp] = useState(false);
 
   const [simResultado, setSimResultado] = useState<{
     sucesso: boolean;
@@ -305,26 +312,25 @@ export default function SimulacaoCustom() {
     const parcelaMaxima = renda * 0.3;
 
     // Seleção de Taxas (Minha Casa Minha Vida vs SBPE)
-    let taxaAnualNominal = 0.095;
-    let taxaAnualEfetiva = 0.099;
-    let modalidade = "SBPE - Recursos Poupança CAIXA";
+    const rules = getMcmvRules();
+    const rateResult = getMcmvRateForRenda(renda, rules);
+    
+    let taxaAnualNominal = rateResult.taxaNominal;
+    let taxaAnualEfetiva = Math.pow(1 + taxaAnualNominal / 12, 12) - 1;
+    let modalidade = "";
 
-    if (renda <= 2640) {
-      taxaAnualNominal = 0.045;
-      taxaAnualEfetiva = 0.046;
+    if (rateResult.faixa === "Faixa 1") {
       modalidade = "Minha Casa Minha Vida - Faixa 1 (FGTS)";
-    } else if (renda <= 4400) {
-      taxaAnualNominal = 0.055;
-      taxaAnualEfetiva = 0.0564;
+    } else if (rateResult.faixa === "Faixa 2") {
       modalidade = "Minha Casa Minha Vida - FGTS (Empreendimento Financiado pela Caixa)";
-    } else if (renda <= 8000) {
-      taxaAnualNominal = 0.0766;
-      taxaAnualEfetiva = 0.08;
+    } else if (rateResult.faixa === "Faixa 3") {
       modalidade = "Minha Casa Minha Vida - Faixa 3 (FGTS)";
+    } else if (rateResult.faixa.includes("Faixa 4")) {
+      modalidade = "Minha Casa Minha Vida - Faixa 4 (Classe Média)";
     } else {
+      modalidade = "SBPE - Recursos SBPE";
       taxaAnualNominal = 0.105;
       taxaAnualEfetiva = 0.11;
-      modalidade = "SBPE - Recursos SBPE";
     }
 
     // Regime SAC (Sistema de Amortização Constante):
@@ -355,9 +361,24 @@ export default function SimulacaoCustom() {
     // Entrada = Valor do Imóvel - Valor Financiado
     const valorEntrada = valorImovel - valorFinanciadoCalculado;
 
-    // Prestação Real do Mês 1
+    // Prestação Real do Mês 1 (SAC)
     const prestacaoRealMes1 =
       valorFinanciadoCalculado / prazoMeses + valorFinanciadoCalculado * taxaMensal + custoSeguroMIP_DFI;
+
+    // Prestação da Tabela Price
+    const prestacaoPriceVal = valorFinanciadoCalculado > 0 
+      ? valorFinanciadoCalculado * (taxaMensal / (1 - Math.pow(1 + taxaMensal, -prazoMeses))) + custoSeguroMIP_DFI
+      : 0;
+
+    const amortizacaoMensal = valorFinanciadoCalculado / prazoMeses;
+    const ultimaParcelaSacVal = valorFinanciadoCalculado > 0 
+      ? amortizacaoMensal + (amortizacaoMensal * taxaMensal) + custoSeguroMIP_DFI
+      : 0;
+
+    const totalJurosSac = ((prazoMeses + 1) * valorFinanciadoCalculado * taxaMensal) / 2;
+    const totalSeguroSac = custoSeguroMIP_DFI * prazoMeses;
+    const totalPagoSacVal = valorFinanciadoCalculado + totalJurosSac + totalSeguroSac;
+    const totalPagoPriceVal = prestacaoPriceVal * prazoMeses;
 
     return {
       sucesso: true,
@@ -365,6 +386,7 @@ export default function SimulacaoCustom() {
       prazoMeses: prazoMeses,
       prazoAnos: prazoAnos,
       parcelaMaxima: prestacaoRealMes1.toFixed(2),
+      parcelaPrice: prestacaoPriceVal.toFixed(2),
       valorFinanciado: valorFinanciadoCalculado.toFixed(2),
       valorImovel: valorImovel.toFixed(2),
       valorEntrada: valorEntrada.toFixed(2),
@@ -372,7 +394,10 @@ export default function SimulacaoCustom() {
       taxaJurosNominal: `${(taxaAnualNominal * 100).toFixed(2)}% a.a.`,
       taxaJurosEfetiva: `${(taxaAnualEfetiva * 100).toFixed(2)}% a.a.`,
       modalidade: modalidade,
-      sistemaAmortizacao: "SAC / TR - Sistema de Amortização Constante",
+      sistemaAmortizacao: "SAC / TR - Constante e PRICE / TR - Tabela Price",
+      ultimaParcelaSac: ultimaParcelaSacVal.toFixed(2),
+      totalPagoSac: totalPagoSacVal.toFixed(2),
+      totalPagoPrice: totalPagoPriceVal.toFixed(2),
     };
   };
 
@@ -397,6 +422,7 @@ export default function SimulacaoCustom() {
         prazoMeses: resultado.prazoMeses,
         prazoAnos: resultado.prazoAnos,
         parcelaMaxima: resultado.parcelaMaxima,
+        parcelaPrice: resultado.parcelaPrice,
         valorFinanciado: resultado.valorFinanciado,
         valorImovel: resultado.valorImovel,
         valorEntrada: resultado.valorEntrada,
@@ -405,6 +431,9 @@ export default function SimulacaoCustom() {
         taxaJurosEfetiva: resultado.taxaJurosEfetiva,
         modalidade: resultado.modalidade,
         sistemaAmortizacao: resultado.sistemaAmortizacao,
+        ultimaParcelaSac: resultado.ultimaParcelaSac,
+        totalPagoSac: resultado.totalPagoSac,
+        totalPagoPrice: resultado.totalPagoPrice,
       });
       toast.success("Simulação de aproximação comercial Caixa efetuada!");
     } else {
@@ -1104,7 +1133,7 @@ export default function SimulacaoCustom() {
         <div className="mb-8">
           <div className="flex items-center gap-4 mb-2 flex-wrap">
             <img
-              src="https://pub-a3cfd193eb6748ec96b423de3caf804f.r2.dev/logo-elite.jpg"
+              src="/logo-elite.jpg"
               alt="Logo Elite"
               referrerPolicy="no-referrer"
               className="h-16 md:h-20 object-contain rounded-lg border border-amber-500/20 shadow-md shadow-amber-500/5"
@@ -1307,19 +1336,38 @@ export default function SimulacaoCustom() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      {/* Card 4: Primeira Parcela SAC */}
-                      <div className="bg-[#161b22] border border-[#30363d] p-5 rounded-lg flex flex-col justify-center">
-                        <span className="text-[11px] font-bold text-[#8b949e] uppercase tracking-wider mb-1">
-                          Primeira Parcela (SAC)
-                        </span>
-                        <div
-                          id="resultadoParcela"
-                          className="text-xl text-teal-400 font-black font-mono tracking-tight"
-                        >
-                          {`R$ ${parseFloat(rapidaResultado.parcelaMaxima || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                      {/* Card 4: Parcelas SAC e PRICE */}
+                      <div className="bg-[#161b22] border border-[#30363d] p-4 rounded-lg flex flex-col justify-between space-y-3">
+                        <div>
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-[10px] font-bold text-[#8b949e] uppercase tracking-wider">
+                              1ª Parcela (SAC)
+                            </span>
+                            <span className="text-[9px] bg-teal-950 text-teal-400 px-1.5 py-0.5 rounded font-mono font-bold uppercase">
+                              Amort. Constante
+                            </span>
+                          </div>
+                          <div className="text-lg text-teal-400 font-black font-mono tracking-tight">
+                            {`R$ ${parseFloat(rapidaResultado.parcelaMaxima || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                          </div>
                         </div>
-                        <span className="text-[10px] text-slate-400 mt-1">
-                          Compromete no máximo 30% da renda informada
+
+                        <div className="border-t border-[#30363d] pt-2">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-[10px] font-bold text-[#8b949e] uppercase tracking-wider">
+                              Parcela Única (PRICE)
+                            </span>
+                            <span className="text-[9px] bg-amber-950 text-amber-400 px-1.5 py-0.5 rounded font-mono font-bold uppercase">
+                              Tabela Price
+                            </span>
+                          </div>
+                          <div className="text-lg text-amber-400 font-black font-mono tracking-tight">
+                            {`R$ ${parseFloat(rapidaResultado.parcelaPrice || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                          </div>
+                        </div>
+
+                        <span className="text-[10px] text-slate-400 border-t border-[#30363d]/50 pt-1.5 block">
+                          Compromete no máx. 30% da renda informada
                         </span>
                       </div>
 
@@ -1362,6 +1410,190 @@ export default function SimulacaoCustom() {
                           </span>
                         </div>
                       </div>
+                    </div>
+
+                    {/* COMPARATIVO PRICE-TR | SAC-TR (JANELA ABRE E FECHA) */}
+                    <div className="mt-6 border border-[#30363d] rounded-lg overflow-hidden bg-[#161b22]">
+                      <button
+                        type="button"
+                        onClick={() => setShowPriceSacComp(!showPriceSacComp)}
+                        className="w-full flex items-center justify-between p-4 bg-[#1f242c] hover:bg-[#282e38] transition-colors focus:outline-none"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-sm font-black text-amber-400 tracking-wider">PRICE-TR</span>
+                          <span className="text-[#30363d] text-xs font-bold">|</span>
+                          <span className="text-sm font-black text-teal-400 tracking-wider">SAC-TR</span>
+                          <span className="ml-2 text-[10px] bg-blue-950/80 text-blue-300 px-2 py-0.5 rounded-full font-bold uppercase border border-blue-800/40">
+                            Detalhamento Comparativo (Abre/Fecha)
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-slate-400 uppercase font-bold hidden sm:inline">
+                            {showPriceSacComp ? "Clique para fechar" : "Clique para abrir"}
+                          </span>
+                          {showPriceSacComp ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                            </svg>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          )}
+                        </div>
+                      </button>
+
+                      {showPriceSacComp && (
+                        <div className="p-5 border-t border-[#30363d] bg-[#0d1117] space-y-6">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Column 1: PRICE-TR */}
+                            <div className="bg-[#161b22] border-2 border-amber-500/20 rounded-lg p-5 relative overflow-hidden">
+                              <div className="absolute top-0 right-0 bg-amber-500/10 text-amber-400 text-[9px] font-black tracking-widest px-3 py-1 rounded-bl uppercase">
+                                Série Price
+                              </div>
+                              <h5 className="text-amber-400 text-sm font-extrabold tracking-wide uppercase mb-4 flex items-center gap-2">
+                                <span>📈</span> PRICE - TR
+                              </h5>
+                              <div className="space-y-3 text-xs text-slate-300">
+                                <div className="flex justify-between py-1.5 border-b border-[#30363d]/50">
+                                  <span className="text-[#8b949e]">Parcela Única (Fixa):</span>
+                                  <strong className="text-amber-400 font-mono text-sm">
+                                    R$ {parseFloat(rapidaResultado.parcelaPrice || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </strong>
+                                </div>
+                                <div className="flex justify-between py-1.5 border-b border-[#30363d]/50">
+                                  <span className="text-[#8b949e]">Primeira Parcela:</span>
+                                  <span className="font-mono">
+                                    R$ {parseFloat(rapidaResultado.parcelaPrice || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between py-1.5 border-b border-[#30363d]/50">
+                                  <span className="text-[#8b949e]">Última Parcela (Mês {rapidaResultado.prazoMeses}):</span>
+                                  <span className="font-mono">
+                                    R$ {parseFloat(rapidaResultado.parcelaPrice || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between py-1.5 border-b border-[#30363d]/50">
+                                  <span className="text-[#8b949e]">Valor Financiado:</span>
+                                  <span className="font-mono">
+                                    R$ {parseFloat(rapidaResultado.valorFinanciado || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between py-1.5 border-b border-[#30363d]/50">
+                                  <span className="text-[#8b949e]">Entrada Necessária:</span>
+                                  <span className="font-mono">
+                                    R$ {parseFloat(rapidaResultado.valorEntrada || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between py-1.5 border-b border-[#30363d]/50">
+                                  <span className="text-[#8b949e]">Total Geral Pago:</span>
+                                  <strong className="font-mono text-slate-200">
+                                    R$ {parseFloat(rapidaResultado.totalPagoPrice || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </strong>
+                                </div>
+                                <div className="pt-2">
+                                  <p className="text-[10px] text-slate-400 italic">
+                                    💡 A Tabela Price possui parcelas iniciais menores que a SAC, porém o saldo devedor amortiza de forma mais lenta, resultando em maior acúmulo de juros ao fim do prazo.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Column 2: SAC-TR */}
+                            <div className="bg-[#161b22] border-2 border-teal-500/20 rounded-lg p-5 relative overflow-hidden">
+                              <div className="absolute top-0 right-0 bg-teal-500/10 text-teal-400 text-[9px] font-black tracking-widest px-3 py-1 rounded-bl uppercase">
+                                Série Constante
+                              </div>
+                              <h5 className="text-teal-400 text-sm font-extrabold tracking-wide uppercase mb-4 flex items-center gap-2">
+                                <span>📉</span> SAC - TR
+                              </h5>
+                              <div className="space-y-3 text-xs text-slate-300">
+                                <div className="flex justify-between py-1.5 border-b border-[#30363d]/50">
+                                  <span className="text-[#8b949e]">Primeira Parcela (SAC):</span>
+                                  <strong className="text-teal-400 font-mono text-sm">
+                                    R$ {parseFloat(rapidaResultado.parcelaMaxima || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </strong>
+                                </div>
+                                <div className="flex justify-between py-1.5 border-b border-[#30363d]/50">
+                                  <span className="text-[#8b949e]">Última Parcela (Mês {rapidaResultado.prazoMeses}):</span>
+                                  <span className="font-mono text-teal-300 font-semibold">
+                                    R$ {parseFloat(rapidaResultado.ultimaParcelaSac || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between py-1.5 border-b border-[#30363d]/50">
+                                  <span className="text-[#8b949e]">Amortização Mensal Fixa:</span>
+                                  <span className="font-mono">
+                                    R$ {((parseFloat(rapidaResultado.valorFinanciado || "0")) / (rapidaResultado.prazoMeses || 1)).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between py-1.5 border-b border-[#30363d]/50">
+                                  <span className="text-[#8b949e]">Valor Financiado:</span>
+                                  <span className="font-mono">
+                                    R$ {parseFloat(rapidaResultado.valorFinanciado || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between py-1.5 border-b border-[#30363d]/50">
+                                  <span className="text-[#8b949e]">Entrada Necessária:</span>
+                                  <span className="font-mono">
+                                    R$ {parseFloat(rapidaResultado.valorEntrada || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between py-1.5 border-b border-[#30363d]/50">
+                                  <span className="text-[#8b949e]">Total Geral Pago:</span>
+                                  <strong className="font-mono text-slate-200">
+                                    R$ {parseFloat(rapidaResultado.totalPagoSac || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </strong>
+                                </div>
+                                <div className="pt-2">
+                                  <p className="text-[10px] text-slate-400 italic">
+                                    💡 No Sistema de Amortização Constante (SAC), o valor pago diminui mensalmente. Como a dívida cai mais rápido, você paga muito menos juros acumulados ao final do contrato.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Comparison Insights */}
+                          {parseFloat(rapidaResultado.totalPagoPrice || "0") > parseFloat(rapidaResultado.totalPagoSac || "0") && (
+                            <div className="bg-emerald-950/40 border border-emerald-500/20 p-4 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-slate-200">
+                              <div>
+                                <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest block mb-0.5">Diferença Financeira (Economia Real)</span>
+                                <span className="text-xs">Ao optar pelo regime <strong className="text-teal-400">SAC-TR</strong> em vez do <strong className="text-amber-400">PRICE-TR</strong>, a economia total estimada em juros é de:</span>
+                              </div>
+                              <div className="text-xl text-emerald-400 font-black font-mono tracking-tight shrink-0">
+                                R$ {(parseFloat(rapidaResultado.totalPagoPrice || "0") - parseFloat(rapidaResultado.totalPagoSac || "0")).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Full Parameters Table */}
+                          <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-4 text-xs text-slate-300">
+                            <h6 className="text-[#8b949e] font-bold uppercase text-[10px] tracking-wider mb-3">Parâmetros Gerais Aplicados</h6>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                              <div>
+                                <span className="text-slate-400 block text-[9px] uppercase font-bold">Imóvel</span>
+                                <strong className="font-mono text-white text-xs">
+                                  R$ {parseFloat(rapidaResultado.valorImovel || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </strong>
+                              </div>
+                              <div>
+                                <span className="text-slate-400 block text-[9px] uppercase font-bold">Prazo Máximo</span>
+                                <strong className="text-white text-xs">
+                                  {rapidaResultado.prazoMeses} meses ({rapidaResultado.prazoAnos} anos)
+                                </strong>
+                              </div>
+                              <div>
+                                <span className="text-slate-400 block text-[9px] uppercase font-bold">Taxa de Juros</span>
+                                <strong className="font-mono text-green-400 text-xs">{rapidaResultado.taxaJurosEfetiva}</strong>
+                              </div>
+                              <div>
+                                <span className="text-slate-400 block text-[9px] uppercase font-bold">Cota Máxima</span>
+                                <strong className="text-white text-xs">{rapidaResultado.cotaFinanciamento} (Máximo)</strong>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : rapidaResultado && !rapidaResultado.sucesso ? (

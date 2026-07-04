@@ -14,7 +14,7 @@ import {
   Lock,
   ShoppingCart,
 } from "lucide-react";
-const logoElite = "https://pub-a3cfd193eb6748ec96b423de3caf804f.r2.dev/logo-elite.jpg";
+const logoElite = "/logo-elite.jpg";
 import DemoAdminPanel from "@/components/DemoAdminPanel";
 import PainelComercial from "@/components/PainelComercial"; // Painel Comercial modal
 import LgpdPanel from "@/components/LgpdPanel";
@@ -1490,7 +1490,7 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
               type="text"
               name="username"
               autoComplete="username"
-              style={{ display: "none" }}
+              className="absolute opacity-0 -z-50 pointer-events-none w-px h-px overflow-hidden"
               aria-hidden="true"
               tabIndex={-1}
               value={getUserEmail() || "corretor@elite.com"}

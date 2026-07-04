@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Settings, X, Upload, Trash2, Eye, EyeOff, KeyRound, Users, MessageCircle, RefreshCw, Webhook, CheckCircle2, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { getAdminData, saveAdminData, AdminData, validatePassword, formatCRECI, resetSystem, changeAdminPassword } from "@/lib/eliteUtils";
+import { getAdminData, saveAdminData, AdminData, validatePassword, formatCRECI, resetSystem, changeAdminPassword, getMcmvRules, saveMcmvRules, DEFAULT_MCMV_RULES, type McmvRule } from "@/lib/eliteUtils";
 import TabelaVendasManager from "./admin/TabelaVendasManager";
 import {
   getCrmWebhooks,
@@ -42,6 +42,10 @@ export default function AdminPanel({ isOpen, onClose, onDataUpdate, isVisitor = 
   const [crmCfg, setCrmCfg] = useState<CrmWebhooksConfig>(() => getCrmWebhooks());
   const [crmTestResult, setCrmTestResult] = useState<Record<string, { ok: boolean; msg: string } | undefined>>({});
   const [crmTesting, setCrmTesting] = useState<CrmProvider | null>(null);
+
+  // MCMV Dynamic motor state
+  const [mcmvRules, setMcmvRules] = useState<McmvRule[]>([]);
+  const [showMcmvConfig, setShowMcmvConfig] = useState(false);
 
   const updateCrm = (p: CrmProvider, patch: Partial<CrmWebhooksConfig[CrmProvider]>) => {
     setCrmCfg((prev) => {
@@ -117,6 +121,7 @@ export default function AdminPanel({ isOpen, onClose, onDataUpdate, isVisitor = 
   useEffect(() => {
     if (isOpen) {
       setData(getAdminData());
+      setMcmvRules(getMcmvRules());
       setAdminPass("");
       setShowAdminPass(false);
       // Visitors skip password, go directly to read-only view
@@ -524,6 +529,169 @@ export default function AdminPanel({ isOpen, onClose, onDataUpdate, isVisitor = 
                           </div>
                         );
                       })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Tabela de Juros Efetivos e Regras do MCMV */}
+                <div className="border-2 border-gold/40 rounded-lg p-4 space-y-3 mt-6">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-primary font-bold text-xs uppercase flex items-center gap-2">
+                      <Settings className="w-4 h-4 text-gold" />
+                      Motor de Cálculo e Regras do MCMV
+                    </h4>
+                    <button
+                      onClick={() => setShowMcmvConfig((v) => !v)}
+                      className="text-[10px] text-primary underline hover:text-gold"
+                    >
+                      {showMcmvConfig ? "Fechar" : "Abrir"}
+                    </button>
+                  </div>
+                  {showMcmvConfig && (
+                    <div className="space-y-4">
+                      <p className="text-[10px] text-muted-foreground leading-relaxed">
+                        Ajuste os limites de renda familiar, as taxas de juros (nominais) mínimas/máximas ao ano, limite máximo do imóvel e subsídio para cada Faixa do MCMV. O motor de cálculo utilizará estes dados para simulações automáticas e proporcionais.
+                      </p>
+                      
+                      <div className="space-y-4">
+                        {mcmvRules.map((rule, idx) => (
+                          <div key={idx} className="bg-card border border-border/60 rounded-lg p-3 space-y-3 shadow-inner">
+                            <div className="flex items-center justify-between border-b border-border/40 pb-1.5">
+                              <span className="text-xs font-black text-gold uppercase tracking-wide">
+                                {rule.faixa}
+                              </span>
+                              <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">
+                                MCMV Regime
+                              </span>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
+                              {/* Renda Familiar Limite */}
+                              <div>
+                                <label className="block text-[9px] font-bold text-muted-foreground uppercase mb-0.5">
+                                  Renda Limite (R$)
+                                </label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={rule.rendaMax}
+                                  onChange={(e) => {
+                                    const val = parseFloat(e.target.value) || 0;
+                                    const next = [...mcmvRules];
+                                    next[idx].rendaMax = val;
+                                    // Cascade next faixa's rendaMin
+                                    if (idx < next.length - 1) {
+                                      next[idx + 1].rendaMin = +(val + 0.01).toFixed(2);
+                                    }
+                                    setMcmvRules(next);
+                                  }}
+                                  className="w-full px-2 py-1 border border-border rounded text-xs bg-background font-mono text-white focus:outline-none focus:ring-1 focus:ring-gold"
+                                />
+                              </div>
+
+                              {/* Taxa Nominal Mínima */}
+                              <div>
+                                <label className="block text-[9px] font-bold text-muted-foreground uppercase mb-0.5">
+                                  Taxa Nominal Mín (% a.a.)
+                                </label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={rule.taxaMin}
+                                  onChange={(e) => {
+                                    const val = parseFloat(e.target.value) || 0;
+                                    const next = [...mcmvRules];
+                                    next[idx].taxaMin = val;
+                                    setMcmvRules(next);
+                                  }}
+                                  className="w-full px-2 py-1 border border-border rounded text-xs bg-background font-mono text-white focus:outline-none focus:ring-1 focus:ring-gold"
+                                />
+                              </div>
+
+                              {/* Taxa Nominal Máxima */}
+                              <div>
+                                <label className="block text-[9px] font-bold text-muted-foreground uppercase mb-0.5">
+                                  Taxa Nominal Máx (% a.a.)
+                                </label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={rule.taxaMax}
+                                  onChange={(e) => {
+                                    const val = parseFloat(e.target.value) || 0;
+                                    const next = [...mcmvRules];
+                                    next[idx].taxaMax = val;
+                                    setMcmvRules(next);
+                                  }}
+                                  className="w-full px-2 py-1 border border-border rounded text-xs bg-background font-mono text-white focus:outline-none focus:ring-1 focus:ring-gold"
+                                />
+                              </div>
+
+                              {/* Limite do Imóvel */}
+                              <div>
+                                <label className="block text-[9px] font-bold text-muted-foreground uppercase mb-0.5">
+                                  Teto do Imóvel (R$)
+                                </label>
+                                <input
+                                  type="number"
+                                  step="1000"
+                                  value={rule.limiteImovelMax}
+                                  onChange={(e) => {
+                                    const val = parseInt(e.target.value) || 0;
+                                    const next = [...mcmvRules];
+                                    next[idx].limiteImovelMax = val;
+                                    setMcmvRules(next);
+                                  }}
+                                  className="w-full px-2 py-1 border border-border rounded text-xs bg-background font-mono text-white focus:outline-none focus:ring-1 focus:ring-gold"
+                                />
+                              </div>
+
+                              {/* Subsídio Máximo */}
+                              <div className="col-span-2 sm:col-span-1">
+                                <label className="block text-[9px] font-bold text-muted-foreground uppercase mb-0.5">
+                                  Subsídio Máximo (R$)
+                                </label>
+                                <input
+                                  type="number"
+                                  step="1000"
+                                  value={rule.subsidioMax}
+                                  onChange={(e) => {
+                                    const val = parseFloat(e.target.value) || 0;
+                                    const next = [...mcmvRules];
+                                    next[idx].subsidioMax = val;
+                                    setMcmvRules(next);
+                                  }}
+                                  className="w-full px-2 py-1 border border-border rounded text-xs bg-background font-mono text-white focus:outline-none focus:ring-1 focus:ring-gold"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            saveMcmvRules(mcmvRules);
+                            alert("Parâmetros do motor de cálculo MCMV salvos com sucesso! As alterações já estão ativas nos simuladores.");
+                          }}
+                          className="flex-1 py-2 bg-primary text-gold font-bold text-xs uppercase rounded hover:opacity-90 transition-opacity"
+                        >
+                          Salvar Parâmetros
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm("Deseja restaurar as taxas e regras padrão do MCMV (conforme tabela legal original)?")) {
+                              setMcmvRules(DEFAULT_MCMV_RULES);
+                              saveMcmvRules(DEFAULT_MCMV_RULES);
+                              alert("Parâmetros originais restaurados com sucesso!");
+                            }
+                          }}
+                          className="px-3 py-2 bg-[#2d3139] text-slate-300 font-bold text-xs uppercase rounded hover:bg-[#3d434f] transition-colors border border-border"
+                        >
+                          Restaurar Padrão
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
