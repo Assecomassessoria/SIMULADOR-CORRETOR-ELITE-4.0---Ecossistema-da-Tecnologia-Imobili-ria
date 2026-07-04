@@ -1442,6 +1442,7 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
           </div>
 
           <button
+            type="button"
             onClick={() => setSubTab("tecnica")}
             className={`w-full flex items-center gap-3 px-4 py-3 text-xs font-black uppercase tracking-wider rounded-lg transition-all text-left ${
               subTab === "tecnica"
@@ -1454,6 +1455,7 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
           </button>
 
           <button
+            type="button"
             onClick={() => setSubTab("sim40")}
             className={`w-full flex items-center gap-3 px-4 py-3 text-xs font-black uppercase tracking-wider rounded-lg transition-all text-left ${
               subTab === "sim40"
@@ -1466,6 +1468,7 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
           </button>
 
           <button
+            type="button"
             onClick={() => setSubTab("custom")}
             className={`w-full flex items-center gap-3 px-4 py-3 text-xs font-black uppercase tracking-wider rounded-lg transition-all text-left ${
               subTab === "custom"
@@ -1478,7 +1481,9 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
           </button>
 
           <button
-            onClick={() => {
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
               window.open("https://simuladorhabitacao.caixa.gov.br/simulacao", "_blank");
             }}
             className="w-full flex items-center gap-3 px-4 py-3 text-xs font-gold font-black uppercase tracking-wider rounded-lg transition-all text-left bg-[#F8FAFC] text-[#005ca9] border border-border hover:bg-[#005ca9]/10"
@@ -1492,7 +1497,11 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
           </div>
 
           <button
-            onClick={handleNavigateToBloco4}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              handleNavigateToBloco4();
+            }}
             className={`w-full flex items-center gap-3 px-4 py-3 text-[11px] font-black uppercase tracking-wider rounded-lg transition-all text-left ${
               subTab === "tecnica" && dashboardOpen
                 ? "bg-[#002D72]/10 text-[#002D72] border-l-4 border-l-gold shadow-sm"
@@ -1504,7 +1513,11 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
           </button>
 
           <button
-            onClick={handleNavigateToBloco5}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              handleNavigateToBloco5();
+            }}
             className={`w-full flex items-center gap-3 px-4 py-3 text-[11px] font-black uppercase tracking-wider rounded-lg transition-all text-left ${
               subTab === "tecnica" && docsPanelOpen
                 ? "bg-[#002D72]/10 text-[#002D72] border-l-4 border-l-gold shadow-sm"
@@ -2056,7 +2069,11 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
                   </div>
                   <button
                     type="button"
-                    onClick={() => setDashboardOpen(!dashboardOpen)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setDashboardOpen(!dashboardOpen);
+                    }}
                     className="p-1.5 px-3 bg-[#002D72]/5 hover:bg-[#002D72]/15 text-primary border border-[#002D72]/15 rounded-xl flex items-center gap-2 transition-all text-xs font-black uppercase tracking-wider"
                     aria-expanded={dashboardOpen}
                   >
@@ -2071,7 +2088,11 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
               <div id="bloco-5-documentos" className="rounded-xl border-2 border-gold/40 bg-card overflow-hidden shadow-sm scroll-mt-24">
                 <button
                   type="button"
-                  onClick={() => setDocsPanelOpen(!docsPanelOpen)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setDocsPanelOpen(!docsPanelOpen);
+                  }}
                   className="w-full flex items-center justify-between gap-2 px-4 py-4 elite-gradient text-gold hover:opacity-95 transition-opacity"
                   aria-expanded={docsPanelOpen}
                 >
@@ -2443,6 +2464,7 @@ function DashboardInterativo({ fields, results }: DashboardInterativoProps) {
             ].map((p) => (
               <button
                 key={p.id}
+                type="button"
                 onClick={() => handlePresetSelect(p.id as any)}
                 className={`px-2.5 py-1 rounded text-[11px] font-bold uppercase transition-all duration-200 border ${
                   activePreset === p.id
@@ -2458,6 +2480,7 @@ function DashboardInterativo({ fields, results }: DashboardInterativoProps) {
           {/* Chart Type Selector */}
           <div className="flex items-center bg-white p-1 rounded-lg border border-border self-start sm:self-auto">
             <button
+              type="button"
               onClick={() => setChartType("pizza")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-extrabold uppercase tracking-wide transition-all ${
                 chartType === "pizza"
@@ -2468,6 +2491,7 @@ function DashboardInterativo({ fields, results }: DashboardInterativoProps) {
               🍕 Donut
             </button>
             <button
+              type="button"
               onClick={() => setChartType("barras")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-extrabold uppercase tracking-wide transition-all ${
                 chartType === "barras"
@@ -2490,6 +2514,7 @@ function DashboardInterativo({ fields, results }: DashboardInterativoProps) {
               return (
                 <button
                   key={m.id}
+                  type="button"
                   disabled={!isAvailable}
                   onClick={() => toggleMetric(m.id)}
                   className={`flex items-center justify-between text-[11px] px-2.5 py-2 rounded-lg border transition-all truncate text-left ${
