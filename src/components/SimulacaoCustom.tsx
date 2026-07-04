@@ -1148,13 +1148,13 @@ export default function SimulacaoCustom() {
               className="py-2.5 px-3 h-auto text-xs font-semibold data-[state=active]:bg-slate-700 data-[state=active]:text-white text-slate-300"
               value="customizado"
             >
-              Simulador Custom ⭐
+              Simul. Custom.⭐
             </TabsTrigger>
             <TabsTrigger
               className="py-2.5 px-3 h-auto text-xs font-semibold data-[state=active]:bg-slate-700 data-[state=active]:text-white text-slate-300"
               value="percentuais"
             >
-              Ajuste Percentuais
+              Ajustes Percent.
             </TabsTrigger>
             <TabsTrigger
               className="py-2.5 px-3 h-auto text-xs font-semibold data-[state=active]:bg-slate-700 data-[state=active]:text-white text-slate-300"
@@ -1166,7 +1166,7 @@ export default function SimulacaoCustom() {
               className="py-2.5 px-3 h-auto text-xs font-semibold data-[state=active]:bg-slate-700 data-[state=active]:text-white text-slate-300"
               value="fluxo"
             >
-              Fluxo Personalizado
+              Fluxo Personal.
             </TabsTrigger>
             <TabsTrigger
               className="py-2.5 px-3 h-auto text-xs font-semibold data-[state=active]:bg-slate-700 data-[state=active]:text-white text-slate-300"

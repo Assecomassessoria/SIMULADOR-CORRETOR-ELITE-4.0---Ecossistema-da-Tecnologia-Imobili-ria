@@ -26,6 +26,7 @@ import Simulacao40 from "@/components/Simulacao40";
 import SimulacaoCustom from "@/components/SimulacaoCustom";
 import WhatsappQrCard from "@/components/marketing/WhatsappQrCard";
 import { useUnidadeLookup } from "@/hooks/useUnidadeLookup";
+import DocumentModal from "@/components/DocumentModal";
 
 interface CalcResults {
   descLanc: number;
@@ -118,6 +119,7 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
   const [docMenuOpen, setDocMenuOpen] = useState(false);
   const [printMenuOpen, setPrintMenuOpen] = useState(false);
   const [vencimentosOpen, setVencimentosOpen] = useState(false);
+  const [activeDocModal, setActiveDocModal] = useState<string | null>(null);
   const [waConnectOpen, setWaConnectOpen] = useState(false);
   const [docsPanelOpen, setDocsPanelOpen] = useState(() => {
     if (typeof window === "undefined") return true;
@@ -812,156 +814,7 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
       alert("Função disponível apenas para assinantes ativos.");
       return;
     }
-    const cliente = fields.infoCli || "";
-    const cpf = fields.infoCpf || "";
-
-    const hoje = new Date();
-    const meses = [
-      "janeiro",
-      "fevereiro",
-      "março",
-      "abril",
-      "maio",
-      "junho",
-      "julho",
-      "agosto",
-      "setembro",
-      "outubro",
-      "novembro",
-      "dezembro",
-    ];
-    const dataTexto = `São Paulo, ${hoje.getDate()} de ${meses[hoje.getMonth()]} de ${hoje.getFullYear()}`;
-
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
-    printWindow.document.write(`<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <title>Autorização Pesquisa Cadastral - ${cliente}</title>
-    <style>
-        @page { size: A4; margin: 15mm 20mm; }
-        body { font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #000; margin: 0; padding: 20px; background-color: #f3f4f6; }
-        .sheet { max-width: 800px; margin: 0 auto; background: #fff; padding: 32px; box-shadow: 0 10px 25px rgba(0,0,0,.12); border-radius: 8px; position: relative; }
-        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
-        .logo { font-size: 24px; font-weight: bold; color: #005ca9; }
-        .sigilo-box { border: 1px solid #000; padding: 5px 10px; text-align: center; font-size: 10px; }
-        .title { text-align: center; font-weight: bold; font-size: 13px; margin-bottom: 20px; }
-        .checkbox-group { margin-bottom: 15px; font-size: 12px; display: flex; gap: 20px; }
-        .checkbox-group label { display: flex; align-items: center; gap: 6px; font-weight: bold; cursor: pointer; }
-        .agency-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        .agency-table td { border: 1px solid #000; padding: 5px 10px; height: 50px; vertical-align: top; font-size: 10px; }
-        .agency-table td input { border: none; border-bottom: 1px dashed #999; width: 100%; padding: 4px; font-size: 11px; outline: none; margin-top: 4px; background: transparent; }
-        .agency-table td input:focus { border-bottom: 1.5px solid #005ca9; }
-        .section-title { font-weight: bold; margin-bottom: 5px; font-size: 12px; color: #005ca9; text-transform: uppercase; }
-        .client-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        .client-table th, .client-table td { border: 1px solid #000; padding: 8px; }
-        .client-table th { background: #f1f5f9; text-transform: uppercase; font-size: 10px; }
-        .client-table td input { border: none; width: 100%; padding: 4px; font-size: 11px; outline: none; background: transparent; }
-        .col-nome { width: 70%; text-align: left; }
-        .col-cpf { width: 30%; text-align: center; }
-        .terms-title { font-weight: bold; font-style: italic; margin-bottom: 10px; color: #005ca9; }
-        ul, ol { margin-top: 5px; margin-bottom: 15px; padding-left: 25px; }
-        ol { list-style-type: lower-alpha; }
-        li { margin-bottom: 8px; text-align: justify; }
-        .date-section { margin-top: 30px; margin-bottom: 40px; font-size: 12px; }
-        .date-section input { border: none; border-bottom: 1px dashed #999; padding: 2px 5px; font-size: 12px; outline: none; width: 300px; background: transparent; }
-        .date-section input:focus { border-bottom: 1.5px solid #005ca9; }
-        .signatures { display: flex; justify-content: space-between; margin-bottom: 40px; }
-        .sign-box { width: 45%; text-align: center; font-size: 10px; }
-        .sign-line { border-bottom: 1px solid #000; height: 40px; margin-bottom: 5px; }
-        .footer { border-top: 2px solid #005ca9; padding-top: 10px; font-size: 9px; color: #333; text-align: left; line-height: 1.2; }
-        .actions { text-align: center; margin-top: 24px; }
-        .actions button { background: #005ca9; color: #fff; font-weight: bold; border: none; padding: 10px 28px; border-radius: 6px; cursor: pointer; font-size: 13px; letter-spacing: 1px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .actions button:hover { opacity: .9; }
-        @media print {
-            body { background: #fff; padding: 0; }
-            .sheet { box-shadow: none; border-radius: 0; padding: 0; }
-            .no-print { display: none !important; }
-            .agency-table td input, .client-table td input, .date-section input { border: none !important; }
-        }
-    </style>
-</head>
-<body>
-<div class="sheet">
-    <div class="header">
-        <div class="logo">CAIXA</div>
-        <div class="sigilo-box">Grau de sigilo<br><strong>#PUBLICO</strong></div>
-    </div>
-    <div class="title">Autorização para Pesquisa Cadastral de Cliente – Rede Parceira</div>
-    <div class="checkbox-group">
-        <label><input type="checkbox"> UL - Unidade Lotérica</label>
-        <label><input type="checkbox" checked> CCA - Correspondente CAIXA AQUI</label>
-    </div>
-    <table class="agency-table">
-        <tr>
-            <td style="width: 25%;">Cód. UL/CCA<br><input type="text" value="31.422.572" placeholder="Digite o código"></td>
-            <td style="width: 25%;">Cód Ag. Vinc.<br><input type="text" value="4300" placeholder="Código Agência"></td>
-            <td style="width: 50%;">Nome da Agência<br><input type="text" value="Venda Segura Corretor Elite" placeholder="Nome da Agência"></td>
-        </tr>
-    </table>
-    <div class="section-title">Pesquisa Cadastral do(s) Cliente(es):</div>
-    <table class="client-table">
-        <tr>
-            <th class="col-nome">Nome do Cliente (es) (Dê um clique para editar)</th>
-            <th class="col-cpf">CPF/CNPJ Cliente (es)</th>
-        </tr>
-        <tr>
-            <td class="col-nome"><input type="text" value="${cliente.toUpperCase()}" placeholder="Nome do 1º Proponente"></td>
-            <td class="col-cpf"><input type="text" value="${cpf}" placeholder="CPF do 1º Proponente"></td>
-        </tr>
-        <tr>
-            <td class="col-nome"><input type="text" value="" placeholder="Nome do Cônjuge/2º Proponente (Se houver)"></td>
-            <td class="col-cpf"><input type="text" value="" placeholder="CPF do Cônjuge/2º Proponente"></td>
-        </tr>
-    </table>
-    <div class="terms-title">Autorizo a CAIXA ECONÔMICA FEDERAL:</div>
-    <ul>
-        <li>Nos termos das Resoluções BACEN nº 3.920/10 e 5.037/22:
-            <ul>
-                <li>a consultar as informações consolidadas a respeito das operações de crédito e câmbio constantes em meu nome no SCR - BACEN, gerido pelo Banco Central do Brasil, ou dos sistemas que venham a complementá-lo ou a substituí-lo;</li>
-                <li>a fornecer informações sobre as operações de crédito e câmbio por mim realizadas com a CAIXA, no sentido de compor o cadastro do SCR - BACEN;</li>
-                <li>ao arquivamento dos meus dados cadastrais.</li>
-            </ul>
-        </li>
-        <li>Respeitadas as disposições legais em vigor:
-            <ul>
-                <li>a consulta e arquivamento dos meus dados cadastrais e de idoneidade, nos serviços de proteção ao crédito com as quais a CAIXA mantém convênio firmado e que deles poderá se utilizar.</li>
-            </ul>
-        </li>
-    </ul>
-    <div class="terms-title">Estou ciente de que:</div>
-    <ol>
-        <li>o SCR - BACEN é um cadastro que visa prover o BACEN de informações, para fins de monitoramento do crédito no sistema financeiro e para o exercício de suas atividades de fiscalização, e é utilizado para propiciar o intercâmbio de informações entre instituições financeiras, conforme Resolução BACEN nº 5.037/22, sobre o montante de responsabilidades de clientes em operações de crédito e de câmbio;</li>
-        <li>poderei ter acesso aos dados constantes em meu nome no SCR por meio das Centrais de Atendimento ao Público do BACEN e/ou por meio do endereço http://www.bcb.gov.br;</li>
-        <li>os pedidos de correção e/ou exclusão quanto às informações constantes do SCR deverão ser dirigidos à instituição responsável pela remessa das informações ao BACEN, por meio de requerimento escrito e fundamentado, ou, quando for o caso, pela respectiva decisão judicial;</li>
-        <li>o BACEN é autorizado a tornar disponíveis às Instituições que podem consultar o SCR BACEN informações consolidadas sobre as minhas operações de crédito e de câmbio, respeitadas as regras estabelecidas pelo próprio BACEN.</li>
-    </ol>
-    <div class="date-section">
-        Local/Data: <input type="text" value="${dataTexto}">
-    </div>
-    <div class="signatures">
-        <div class="sign-box"><div class="sign-line"></div>Assinatura Cliente</div>
-        <div class="sign-box"><div class="sign-line"></div>Assinatura sob carimbo do responsável pela prospecção do produto -<br>Empregado Caixa - se Agência/PA ou<br>Correspondente CAIXA AQUI, se CCA</div>
-    </div>
-    <div class="signatures">
-        <div class="sign-box"><div class="sign-line"></div>Assinatura Cliente / Cônjuge do Cliente</div>
-    </div>
-    <div class="footer">
-        <strong>SAC CAIXA:</strong> 0800 726 0101 (informações, reclamações, sugestões e elogios)<br>
-        Para Pessoas com deficiência auditiva ou de fala: 0800 726 2492<br>
-        <strong>Alô CAIXA:</strong> 4004 0104 (capitais e regiões metropolitanas) ou 0800 104 0104 (demais localidades)<br>
-        <strong>Ouvidoria:</strong> 0800 725 7474<br>
-        caixa.gov.br
-    </div>
-
-    <div class="actions no-print">
-        <button onclick="window.print()">Imprimir / Salvar PDF</button>
-    </div>
-</div>
-</body>
-</html>`);
-    printWindow.document.close();
+    setActiveDocModal("mo");
   };
 
   const handleFichaCadastral = async () => {
@@ -969,40 +822,12 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
       alert("Função disponível apenas para assinantes ativos.");
       return;
     }
-    const cliente = fields.infoCli || "";
-    const cpf = fields.infoCpf || "";
-    const empreendimento = (fields as any).infoEmpr || fields.descLanc || "";
-    const torre = fields.infoAndar || "";
-    const unidade = fields.infoApto || "";
-    const corretor = fields.infoCreci ? `CRECI ${fields.infoCreci}` : "";
-    const renda = fields.infoRenda || "";
-    const fgts = fields.fgts || "";
-    const subs = fields.subsidio || "";
-    const aprovacao = fields.aprovacao || "";
-    const sinal = fields.atoCliente || "";
-    const avaliacao = fields.avaliacao || fields.lancamento || "";
+    setActiveDocModal("cadastral");
+  };
 
-    const hoje = new Date();
-    const dia = hoje.getDate().toString().padStart(2, "0");
-    const meses = [
-      "JANEIRO",
-      "FEVEREIRO",
-      "MARÇO",
-      "ABRIL",
-      "MAIO",
-      "JUNHO",
-      "JULHO",
-      "AGOSTO",
-      "SETEMBRO",
-      "OUTUBRO",
-      "NOVEMBRO",
-      "DEZEMBRO",
-    ];
-    const mesNome = meses[hoje.getMonth()];
-    const ano = hoje.getFullYear();
-
-    const w = window.open("", "_blank");
-    if (!w) return;
+  const unusedFichaCadastral = () => {
+    const cliente = "";
+    const w = { document: { write: (s: string) => {}, close: () => {} } };
     w.document.write(`<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -1160,6 +985,10 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
       alert("Função disponível apenas para assinantes ativos.");
       return;
     }
+    setActiveDocModal("editavel");
+  };
+
+  const unusedFichaCadastralEditavel = () => {
     const hoje = new Date();
     const dia = hoje.getDate().toString().padStart(2, "0");
     const meses = [
@@ -1338,7 +1167,11 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
       alert("Função disponível apenas para assinantes ativos.");
       return;
     }
-    const proponente = fields.infoCli || "";
+    setActiveDocModal("parentesco");
+  };
+
+  const unusedDeclaracaoParentesco = () => {
+    const proponente = "";
     const cpfProp = fields.infoCpf || "";
     const hoje = new Date().toISOString().split("T")[0];
 
@@ -1420,8 +1253,11 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
       alert("Função disponível apenas para assinantes ativos.");
       return;
     }
+    setActiveDocModal("cancelamento");
+  };
 
-    const cliente = fields.infoCli || "";
+  const unusedCartaCancelamento = () => {
+    const cliente = "";
     const cpf = fields.infoCpf || "";
 
     const hoje = new Date();
@@ -3088,6 +2924,15 @@ function DashboardInterativo({ fields, results }: DashboardInterativoProps) {
           );
         })()}
       </div>
+
+      {activeDocModal && (
+        <DocumentModal
+          type={activeDocModal}
+          fields={fields}
+          adminData={adminData}
+          onClose={() => setActiveDocModal(null)}
+        />
+      )}
     </div>
   );
 }
