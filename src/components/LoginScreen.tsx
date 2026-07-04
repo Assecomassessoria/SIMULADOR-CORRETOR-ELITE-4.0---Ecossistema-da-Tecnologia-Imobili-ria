@@ -75,6 +75,9 @@ function PasswordInput({
   onKeyDown,
   centerText = true,
   numericOnly = false,
+  id,
+  name = "password",
+  autoComplete = "current-password",
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -84,6 +87,9 @@ function PasswordInput({
   onKeyDown?: (e: React.KeyboardEvent) => void;
   centerText?: boolean;
   numericOnly?: boolean;
+  id?: string;
+  name?: string;
+  autoComplete?: string;
 }) {
   const [show, setShow] = useState(false);
   return (
@@ -96,6 +102,9 @@ function PasswordInput({
           if (numericOnly) val = val.replace(/\D/g, "").slice(0, maxLength);
           onChange(val);
         }}
+        id={id}
+        name={name}
+        autoComplete={autoComplete}
         placeholder={placeholder}
         maxLength={maxLength}
         onKeyDown={onKeyDown}
@@ -1476,6 +1485,17 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
           )}
 
           <form onSubmit={handleSubmit} className="w-full space-y-4">
+            {/* Hidden username input to prevent browser/password manager loops and crashes on mobile */}
+            <input
+              type="text"
+              name="username"
+              autoComplete="username"
+              style={{ display: "none" }}
+              aria-hidden="true"
+              tabIndex={-1}
+              value={getUserEmail() || "corretor@elite.com"}
+              readOnly
+            />
             <div className="flex items-center justify-center gap-2 mb-2">
               <Lock className="w-4 h-4 text-gold/70" />
               <p className="text-gold/70 text-sm">Insira a senha para acessar o simulador</p>
@@ -1486,6 +1506,9 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
                 setPassword(v);
                 setError("");
               }}
+              id="password"
+              name="password"
+              autoComplete="current-password"
               placeholder="Senha de acesso"
               maxLength={50}
               className={inputStyle}
