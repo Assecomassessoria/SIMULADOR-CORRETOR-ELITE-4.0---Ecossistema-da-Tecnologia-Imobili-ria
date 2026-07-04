@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, Columns3, ListTodo, BarChart3, Plus, Search, Building2 } from 'lucide-react';
+import { Users, Columns3, ListTodo, BarChart3, Plus, Search, Building2, AlertTriangle, ExternalLink } from 'lucide-react';
 import { fetchLeads as fetchLeadsApi } from '@/lib/crmApi';
 import CrmLeadForm from '@/components/crm/CrmLeadForm';
 import CrmLeadsList from '@/components/crm/CrmLeadsList';
@@ -10,6 +10,7 @@ import CrmKanban from '@/components/crm/CrmKanban';
 import CrmTasks from '@/components/crm/CrmTasks';
 import CrmReports from '@/components/crm/CrmReports';
 import CrmConstrutoras from '@/components/crm/CrmConstrutoras';
+import { getActiveTenant } from '@/lib/tenant';
 
 const CrmTab = ({ isVisitor = false }: { isVisitor?: boolean }) => {
   const [leads, setLeads] = useState<any[]>([]);
@@ -17,6 +18,7 @@ const CrmTab = ({ isVisitor = false }: { isVisitor?: boolean }) => {
   const [formOpen, setFormOpen] = useState(false);
   const [editLead, setEditLead] = useState<any>(null);
   const [activeSubTab, setActiveSubTab] = useState('construtoras');
+  const activeTenant = getActiveTenant();
 
   const fetchLeads = useCallback(async () => {
     try {
@@ -43,6 +45,26 @@ const CrmTab = ({ isVisitor = false }: { isVisitor?: boolean }) => {
 
   return (
     <div className={isVisitor ? 'pointer-events-none' : ''}>
+      {activeTenant && (
+        <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-amber-200">
+          <div className="flex gap-2 items-start">
+            <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold">Recurso Isolado por Escopo (Tenant: {activeTenant.name})</p>
+              <p className="text-muted-foreground">A customização visual e de propostas desta imobiliária parceira é restrita aos simuladores técnicos. Para CRM completo e funil de vendas, use o ambiente unificado do <strong>Lorento CRM</strong>.</p>
+            </div>
+          </div>
+          <a
+            href={`https://lorentocrm.simuladorcorretorelite.com.br`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-[11px] font-black uppercase text-amber-400 hover:underline bg-amber-500/15 px-2.5 py-1 rounded"
+          >
+            Acessar CRM <ExternalLink className="w-3 h-3" />
+          </a>
+        </div>
+      )}
+
       {/* Search & Actions */}
       <div className="flex items-center gap-2 mb-4">
         <div className="relative flex-1">

@@ -11,6 +11,7 @@ import {
   type CrmProvider,
   type CrmWebhooksConfig,
 } from "@/lib/crmWebhooks";
+import { getStoredTenants, saveCustomTenant, applyTenantTheme, type TenantConfig } from "@/lib/tenant";
 
 interface AdminPanelProps {
   isOpen: boolean;
@@ -46,6 +47,17 @@ export default function AdminPanel({ isOpen, onClose, onDataUpdate, isVisitor = 
   // MCMV Dynamic motor state
   const [mcmvRules, setMcmvRules] = useState<McmvRule[]>([]);
   const [showMcmvConfig, setShowMcmvConfig] = useState(false);
+
+  // Tenant states
+  const [showTenantConfig, setShowTenantConfig] = useState(false);
+  const [tenants, setTenants] = useState<TenantConfig[]>([]);
+  const [activePreviewSlug, setActivePreviewSlug] = useState<string>(() => localStorage.getItem("tenant_preview_slug") || "");
+  const [newTenantName, setNewTenantName] = useState("");
+  const [newTenantSlug, setNewTenantSlug] = useState("");
+  const [newTenantPrimary, setNewTenantPrimary] = useState("#000000");
+  const [newTenantSecondary, setNewTenantSecondary] = useState("#ffffff");
+  const [newTenantCreci, setNewTenantCreci] = useState("");
+  const [newTenantPhone, setNewTenantPhone] = useState("");
 
   const updateCrm = (p: CrmProvider, patch: Partial<CrmWebhooksConfig[CrmProvider]>) => {
     setCrmCfg((prev) => {
@@ -122,6 +134,7 @@ export default function AdminPanel({ isOpen, onClose, onDataUpdate, isVisitor = 
     if (isOpen) {
       setData(getAdminData());
       setMcmvRules(getMcmvRules());
+      setTenants(getStoredTenants());
       setAdminPass("");
       setShowAdminPass(false);
       // Visitors skip password, go directly to read-only view
@@ -690,6 +703,210 @@ export default function AdminPanel({ isOpen, onClose, onDataUpdate, isVisitor = 
                           className="px-3 py-2 bg-[#2d3139] text-slate-300 font-bold text-xs uppercase rounded hover:bg-[#3d434f] transition-colors border border-border"
                         >
                           Restaurar Padrão
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Customização de Imobiliárias / Multi-Tenant */}
+                <div className="border-2 border-gold/40 rounded-lg p-4 space-y-3 mt-6">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-primary font-bold text-xs uppercase flex items-center gap-2">
+                      <Users className="w-4 h-4 text-gold" />
+                      Multi-Tenant / Customização de Imobiliárias
+                    </h4>
+                    <button
+                      onClick={() => setShowTenantConfig((v) => !v)}
+                      className="text-[10px] text-primary underline hover:text-gold"
+                    >
+                      {showTenantConfig ? "Fechar" : "Abrir"}
+                    </button>
+                  </div>
+                  {showTenantConfig && (
+                    <div className="space-y-4">
+                      <p className="text-[10px] text-muted-foreground leading-relaxed">
+                        Customize a ferramenta com as cores e a marca da Imobiliária parceira. O sistema aplicará dinamicamente as identidades visuais de forma isolada ao acessar o subdomínio correspondente ou selecionando um simulador de preview abaixo.
+                      </p>
+
+                      {/* Simulador de Subdomínio / Preview Ativo */}
+                      <div className="bg-muted border border-border/60 rounded-lg p-3 space-y-2">
+                        <label className="block text-[10px] font-bold text-primary uppercase">
+                          Simulador de Subdomínio (Ambiente de Demonstração / Preview)
+                        </label>
+                        <select
+                          value={activePreviewSlug}
+                          onChange={(e) => {
+                            const slug = e.target.value;
+                            setActivePreviewSlug(slug);
+                            if (slug) {
+                              localStorage.setItem("tenant_preview_slug", slug);
+                              const match = tenants.find(t => t.slug === slug);
+                              applyTenantTheme(match || null);
+                            } else {
+                              localStorage.removeItem("tenant_preview_slug");
+                              applyTenantTheme(null);
+                            }
+                            // Refresh layout colors instantly
+                            alert(`Subdomínio simulado alterado para: ${slug ? slug + ".simuladorcorretorelite.com.br" : "Tema Padrão"}. Toda a interface se adaptará agora!`);
+                          }}
+                          className="w-full px-2 py-1.5 border border-border rounded text-xs bg-background text-white focus:outline-none focus:ring-1 focus:ring-gold"
+                        >
+                          <option value="">Sem subdomínio (Usar tema padrão do sistema)</option>
+                          {tenants.map(t => (
+                            <option key={t.slug} value={t.slug}>
+                              {t.name} ({t.slug}.simuladorcorretorelite.com.br)
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-[9px] text-muted-foreground italic">
+                          No servidor de produção, este layout carrega automaticamente de forma 100% transparente com base no subdomínio acessado (Wildcard Tenant routing).
+                        </p>
+                      </div>
+
+                      {/* Lista de Imobiliárias (Tenants) Cadastradas */}
+                      <div className="space-y-2">
+                        <label className="block text-[10px] font-bold text-primary uppercase">
+                          Imobiliárias Customizadas Ativas
+                        </label>
+                        <div className="max-h-40 overflow-y-auto space-y-1 bg-muted border border-border/40 rounded p-2">
+                          {tenants.map(t => (
+                            <div key={t.slug} className="flex items-center justify-between text-xs p-1.5 hover:bg-muted/30 rounded border-b border-border/10">
+                              <div>
+                                <span className="font-bold text-white">{t.name}</span>
+                                <span className="text-[10px] text-muted-foreground block font-mono">
+                                  {t.slug}.simuladorcorretorelite.com.br
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="w-4 h-4 rounded border border-white/20" style={{ backgroundColor: t.primaryColor }} title="Cor Primária" />
+                                <span className="w-4 h-4 rounded border border-white/20" style={{ backgroundColor: t.secondaryColor }} title="Cor Secundária" />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Formulário para adicionar nova imobiliária */}
+                      <div className="bg-muted border border-border/60 rounded-lg p-3 space-y-3">
+                        <span className="text-[10px] font-black text-gold uppercase tracking-wide block">
+                          Cadastrar Nova Imobiliária Parceira (Tenant)
+                        </span>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-[9px] font-bold text-muted-foreground uppercase mb-0.5">Nome Fantasia</label>
+                            <input
+                              type="text"
+                              placeholder="Ex: Direcional Vendas"
+                              value={newTenantName}
+                              onChange={(e) => setNewTenantName(e.target.value)}
+                              className="w-full px-2 py-1 border border-border rounded text-xs bg-background text-white focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[9px] font-bold text-muted-foreground uppercase mb-0.5">Subdomínio (Slug)</label>
+                            <input
+                              type="text"
+                              placeholder="Ex: direcional"
+                              value={newTenantSlug}
+                              onChange={(e) => setNewTenantSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ""))}
+                              className="w-full px-2 py-1 border border-border rounded text-xs bg-background text-white font-mono focus:outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-[9px] font-bold text-muted-foreground uppercase mb-0.5">Cor Primária (Hex)</label>
+                            <div className="flex gap-1.5 items-center">
+                              <input
+                                type="color"
+                                value={newTenantPrimary}
+                                onChange={(e) => setNewTenantPrimary(e.target.value)}
+                                className="w-6 h-6 border-0 bg-transparent rounded cursor-pointer"
+                              />
+                              <input
+                                type="text"
+                                value={newTenantPrimary}
+                                onChange={(e) => setNewTenantPrimary(e.target.value)}
+                                className="w-full px-2 py-0.5 border border-border rounded text-[11px] bg-background text-white font-mono"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-[9px] font-bold text-muted-foreground uppercase mb-0.5">Cor Secundária (Hex)</label>
+                            <div className="flex gap-1.5 items-center">
+                              <input
+                                type="color"
+                                value={newTenantSecondary}
+                                onChange={(e) => setNewTenantSecondary(e.target.value)}
+                                className="w-6 h-6 border-0 bg-transparent rounded cursor-pointer"
+                              />
+                              <input
+                                type="text"
+                                value={newTenantSecondary}
+                                onChange={(e) => setNewTenantSecondary(e.target.value)}
+                                className="w-full px-2 py-0.5 border border-border rounded text-[11px] bg-background text-white font-mono"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-[9px] font-bold text-muted-foreground uppercase mb-0.5">CRECI (opcional)</label>
+                            <input
+                              type="text"
+                              placeholder="Ex: CRECI 12345-J"
+                              value={newTenantCreci}
+                              onChange={(e) => setNewTenantCreci(e.target.value)}
+                              className="w-full px-2 py-1 border border-border rounded text-xs bg-background text-white focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[9px] font-bold text-muted-foreground uppercase mb-0.5">Telefone / Whats (opcional)</label>
+                            <input
+                              type="text"
+                              placeholder="Ex: (11) 99999-8888"
+                              value={newTenantPhone}
+                              onChange={(e) => setNewTenantPhone(e.target.value)}
+                              className="w-full px-2 py-1 border border-border rounded text-xs bg-background text-white focus:outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            if (!newTenantName || !newTenantSlug) {
+                              alert("Nome e subdomínio são obrigatórios.");
+                              return;
+                            }
+                            const match = tenants.find(t => t.slug === newTenantSlug);
+                            if (match && !confirm("Já existe uma imobiliária com este subdomínio. Deseja sobrescrever as cores e dados?")) {
+                              return;
+                            }
+                            const added: TenantConfig = {
+                              name: newTenantName,
+                              slug: newTenantSlug,
+                              primaryColor: newTenantPrimary,
+                              secondaryColor: newTenantSecondary,
+                              creci: newTenantCreci || undefined,
+                              phone: newTenantPhone || undefined,
+                            };
+                            saveCustomTenant(added);
+                            const updatedList = getStoredTenants();
+                            setTenants(updatedList);
+                            // Clear form
+                            setNewTenantName("");
+                            setNewTenantSlug("");
+                            setNewTenantCreci("");
+                            setNewTenantPhone("");
+                            alert(`Imobiliária '${newTenantName}' cadastrada com sucesso! Ative-a no Simulador de Subdomínio para testar o visual.`);
+                          }}
+                          className="w-full py-1.5 bg-gold text-primary font-bold text-xs uppercase rounded hover:opacity-90"
+                        >
+                          Adicionar / Atualizar Imobiliária
                         </button>
                       </div>
                     </div>

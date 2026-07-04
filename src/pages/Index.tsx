@@ -23,6 +23,7 @@ import AdminPanel from "@/components/AdminPanel";
 import CrmTab from "@/components/CrmTab";
 import PainelComercial from "@/components/PainelComercial";
 import SugestoesModal from "@/components/SugestoesModal";
+import { getActiveTenant, type TenantConfig } from "@/lib/tenant";
 
 import {
   checkLoginValid,
@@ -79,6 +80,7 @@ const Index = () => {
   const [sessionKicked, setSessionKicked] = useState(false);
   const [showLicenseBanner, setShowLicenseBanner] = useState(true);
   const [calcOpen, setCalcOpen] = useState(false);
+  const [activeTenant, setActiveTenant] = useState<TenantConfig | null>(() => getActiveTenant());
 
   // Banner: 30s visível, 90s ausente, ciclo
   useEffect(() => {
@@ -225,7 +227,11 @@ const Index = () => {
             <h1
               className={`text-sm sm:text-base font-bold tracking-wider uppercase leading-tight truncate ${isFull ? "text-gold" : "text-primary"}`}
             >
-              {isFull ? (
+              {activeTenant ? (
+                <>
+                  Simulador <span className="text-gold-bright">{activeTenant.name}</span>
+                </>
+              ) : isFull ? (
                 "Simulador Corretor de Elite 4.0"
               ) : (
                 <>
@@ -234,7 +240,7 @@ const Index = () => {
               )}
             </h1>
             <p className={`text-[10px] tracking-[3px] uppercase ${isFull ? "text-gold/60" : "text-primary/60"}`}>
-              {isFull ? "Venda Segura" : "Venda Segura - DEMO"}
+              {activeTenant ? `Parceiro: ${activeTenant.slug}.simuladorcorretorelite.com.br` : isFull ? "Venda Segura" : "Venda Segura - DEMO"}
             </p>
           </div>
           {adminData.imgBroker && (
@@ -360,7 +366,10 @@ const Index = () => {
       {/* Modals & Chat */}
       <AdminPanel
         isOpen={adminOpen}
-        onClose={() => setAdminOpen(false)}
+        onClose={() => {
+          setAdminOpen(false);
+          setActiveTenant(getActiveTenant());
+        }}
         onDataUpdate={setAdminData}
         isVisitor={isVisitor}
       />

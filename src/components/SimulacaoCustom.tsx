@@ -1220,8 +1220,8 @@ export default function SimulacaoCustom() {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                   <div>
-                    <label className="block text-xs font-semibold text-[#8b949e] mb-2 uppercase tracking-wider">
-                      Valor Lançamento/Imóvel (R$)
+                    <label className="block text-[10px] sm:text-xs font-semibold text-[#8b949e] mb-2 uppercase tracking-wider whitespace-nowrap">
+                      Vl. Lançamento/Imóvel (R$)
                     </label>
                     <input
                       type="text"
@@ -1643,9 +1643,9 @@ export default function SimulacaoCustom() {
 
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-[11px] font-semibold text-[#8b949e] mb-1.5 uppercase tracking-wider">
-                          Valor Lançamento / Imóvel (R$){" "}
-                          <span className="text-slate-500 font-normal italic">(Ex: R$ 270.000,00)</span>
+                        <label className="block text-[10px] sm:text-[11px] font-semibold text-[#8b949e] mb-1.5 uppercase tracking-wider whitespace-nowrap">
+                          Vl. Lançamento/Imóvel (R$){" "}
+                          <span className="text-slate-500 font-normal italic hidden sm:inline">(Ex: R$ 270.000,00)</span>
                         </label>
                         <input
                           type="text"
@@ -2027,7 +2027,7 @@ export default function SimulacaoCustom() {
                           </thead>
                           <tbody className="divide-y divide-[#30363d]">
                             <tr>
-                              <td className="py-3 text-slate-300 font-medium text-xs">Valor Lançamento / Imóvel</td>
+                              <td className="py-3 text-slate-300 font-medium text-xs whitespace-nowrap">Vl. Lançamento/Imóvel</td>
                               <td className="py-3 text-right font-mono font-bold text-white text-xs">
                                 {formatCurrency(valorImovelCustom)}
                               </td>
@@ -3025,8 +3025,8 @@ export default function SimulacaoCustom() {
 
             <div className="flex flex-col gap-4 mb-6">
               <div>
-                <label className="block text-xs font-semibold text-[#8b949e] mb-1.5 uppercase tracking-wider">
-                  Valor Lançamento / Imóvel (R$)
+                <label className="block text-[10px] sm:text-xs font-semibold text-[#8b949e] mb-1.5 uppercase tracking-wider whitespace-nowrap">
+                  Vl. Lançamento/Imóvel (R$)
                 </label>
                 <input
                   type="text"

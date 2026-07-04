@@ -491,12 +491,12 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
       fields.parcelasObras ? `Plano de Obras: ${fields.parcelasObras} meses` : "",
       parseCurrency(fields.lancamento) && results.subtotal ? `Percentual: ${((results.subtotal / parseCurrency(fields.lancamento)) * 100).toFixed(2)}%` : "",
       results.valorObras ? `Valor Parcelas Obras: ${formatCurrency(results.valorObras)}` : "",
-      results.totalPosObras > 0 ? `\n🔑 *SALDO FINANCIAMENTO PÓS-ENTREGA (PÓS-OBRAS)*` : "",
-      results.totalPosObras > 0 ? `━━━━━━━━━━━━━━━━━━━━━` : "",
-      fields.percMaxPosObras && results.totalPosObras > 0 ? `Percentual Máximo (%): ${fields.percMaxPosObras}%` : "",
-      results.totalPosObras > 0 ? `Total Pós-Obras: ${formatCurrency(results.totalPosObras)}` : "",
-      fields.planoMesesPosObras && results.totalPosObras > 0 ? `Plano (meses): ${fields.planoMesesPosObras}` : "",
-      results.prestacaoEstimadaPosObras > 0 ? `Prestação Estimada: ${formatCurrency(results.prestacaoEstimadaPosObras)}/mês` : "",
+      `\n🔑 *SALDO FINANCIAMENTO PÓS-ENTREGA (PÓS-OBRAS)*`,
+      `━━━━━━━━━━━━━━━━━━━━━`,
+      `Percentual Máximo (%): ${fields.percMaxPosObras || "0.00"}%`,
+      `Total Pós-Obras: ${formatCurrency(results.totalPosObras || 0)}`,
+      `Plano (meses): ${fields.planoMesesPosObras || "0"}`,
+      `Prestação Estimada: ${formatCurrency(results.prestacaoEstimadaPosObras || 0)}/mês`,
       "",
       `_Simulador Corretor de Elite 4.0 - Venda Segura_`,
     ];
@@ -640,7 +640,11 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
           <div class="section">
             <h2>Saldo Financiamento Pós-Entrega/Plano (Pós-Obras)</h2>
             <div class="row">
-              <div class="field"><label>Percentual Máximo (%)</label><span>${fields.percMaxPosObras || "0"}%</span></div>
+              <div class="field">
+                <label>Percentual Máximo (%)</label>
+                <span>${fields.percMaxPosObras || "0"}%</span>
+                <span style="font-size:9px;color:#555;display:block;">Do Lançamento (${formatCurrency(parseCurrency(fields.lancamento) || 0)})</span>
+              </div>
               <div class="field"><label>Total Pós-Obras</label><span class="highlight">${formatCurrency(results.totalPosObras)}</span></div>
               <div class="field"><label>Plano (meses)</label><span>${fields.planoMesesPosObras || "0"} meses</span></div>
               <div class="field"><label>Prestação Estimada</label><span class="highlight">${formatCurrency(results.prestacaoEstimadaPosObras)}/mês</span></div>
@@ -762,7 +766,7 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
 
   <h2>4. Saldo Financiamento Pós-Entrega/Plano (Pós-Obras)</h2>
   <table>
-    <tr><th>Percentual Máximo (%)</th><td>${fields.percMaxPosObras || "0"}%</td><th>Total Pós-Obras</th><td class="highlight">${formatCurrency(results.totalPosObras)}</td></tr>
+    <tr><th>Percentual Máximo (%)</th><td>${fields.percMaxPosObras || "0"}%<br/><small style="font-size:9px;color:#555;">Do Lançamento: ${formatCurrency(parseCurrency(fields.lancamento) || 0)}</small></td><th>Total Pós-Obras</th><td class="highlight">${formatCurrency(results.totalPosObras)}</td></tr>
     <tr><th>Plano (meses)</th><td>${fields.planoMesesPosObras || "0"} meses</td><th>Prestação Estimada</th><td class="highlight">${formatCurrency(results.prestacaoEstimadaPosObras)}/mês</td></tr>
   </table>
 
