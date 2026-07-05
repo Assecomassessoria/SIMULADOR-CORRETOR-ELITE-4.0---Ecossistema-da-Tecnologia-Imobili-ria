@@ -381,6 +381,7 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
       // Don't set field, just let calc use auto value
       calc(fields);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fields.lancamento]);
 
   const getDocumentosValue = () => {
@@ -1030,7 +1031,7 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
     const mesNome = meses[hoje.getMonth()];
     const ano = hoje.getFullYear();
 
-    const empreendimento = (fields as any).infoEmpr || "";
+    const empreendimento = fields.infoEmp || "";
     const torre = fields.infoAndar || "";
     const unidade = fields.infoApto || "";
     const corretor = fields.infoCreci ? `CRECI ${fields.infoCreci}` : "";
@@ -2360,7 +2361,7 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
 }
 
 // Safe numeric helper to prevent NaN propagation and division-by-zero or non-finite issues
-function safeNum(v: any): number {
+function safeNum(v: unknown): number {
   if (typeof v !== "number" || Number.isNaN(v) || !Number.isFinite(v)) return 0;
   return v;
 }
@@ -2383,7 +2384,7 @@ class DashboardErrorBoundary extends Component<DashboardErrorBoundaryProps, Dash
     return { hasError: true, error };
   }
 
-  public componentDidCatch(error: Error, errorInfo: any) {
+  public componentDidCatch(error: Error, errorInfo: unknown) {
     console.warn("DashboardErrorBoundary caught an error:", error, errorInfo);
   }
 
@@ -2417,8 +2418,8 @@ class DashboardErrorBoundary extends Component<DashboardErrorBoundaryProps, Dash
 }
 
 interface DashboardInterativoProps {
-  fields?: any;
-  results?: any;
+  fields?: Record<string, string>;
+  results?: Partial<CalcResults>;
 }
 
 function DashboardInterativo({ fields = {}, results = {} }: DashboardInterativoProps) {
@@ -2460,7 +2461,7 @@ function DashboardInterativo({ fields = {}, results = {} }: DashboardInterativoP
     if (hasRealData && showDemo) {
       setShowDemo(false);
     }
-  }, [hasRealData]);
+  }, [hasRealData, showDemo]);
 
   // Effective fields and results used for the calculations in this component
   const effFields = (showDemo && !hasRealData) ? {
@@ -2623,17 +2624,17 @@ function DashboardInterativo({ fields = {}, results = {} }: DashboardInterativoP
           {/* Preset Buttons */}
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[10px] font-black uppercase text-muted-foreground mr-1 tracking-wider">Filtros:</span>
-            {[
+            {([
               { id: "geral", label: "Geral" },
               { id: "recursos", label: "Recursos" },
               { id: "pagamentos", label: "Fluxo Pagto" },
               { id: "beneficios", label: "Benefícios" },
               { id: "todos", label: "Ver Tudo" },
-            ].map((p) => (
+            ] as const).map((p) => (
               <button
                 key={p.id}
                 type="button"
-                onClick={() => handlePresetSelect(p.id as any)}
+                onClick={() => handlePresetSelect(p.id)}
                 className={`px-2.5 py-1 rounded text-[11px] font-bold uppercase transition-all duration-200 border ${
                   activePreset === p.id
                     ? "bg-[#002D72] text-white border-primary shadow-sm"
@@ -2749,7 +2750,7 @@ function DashboardInterativo({ fields = {}, results = {} }: DashboardInterativoP
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value: any) => formatCurrency(Number(value) || 0)} />
+                      <Tooltip formatter={(value: unknown) => formatCurrency(Number(value) || 0)} />
                     </PieChart>
                   </ResponsiveContainer>
                   {/* Central Text on Donut */}
@@ -2775,7 +2776,7 @@ function DashboardInterativo({ fields = {}, results = {} }: DashboardInterativoP
                       tickFormatter={(v) => `R$ ${Math.round(v / 1000)}k`}
                       width={55}
                     />
-                    <Tooltip formatter={(value: any) => formatCurrency(Number(value) || 0)} />
+                    <Tooltip formatter={(value: unknown) => formatCurrency(Number(value) || 0)} />
                     <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                       {activeData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
