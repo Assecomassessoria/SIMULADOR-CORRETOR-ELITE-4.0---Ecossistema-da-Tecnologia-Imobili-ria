@@ -246,6 +246,39 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
   const [showLicenseBanner, setShowLicenseBanner] = useState(true);
   const [forgotOpen, setForgotOpen] = useState(false);
   const [clienteSiteOpen, setClienteSiteOpen] = useState(false);
+  const [subPlan, setSubPlan] = useState<"mensal" | "semestral" | "anual" | "anual_dev">("mensal");
+  const [subEmail, setSubEmail] = useState("");
+  const [subLoading, setSubLoading] = useState(false);
+  const [subError, setSubError] = useState("");
+
+  const handleMercadoPagoSubscription = async () => {
+    if (!subEmail || !subEmail.includes("@")) {
+      setSubError("Por favor, insira um e-mail válido.");
+      return;
+    }
+    setSubError("");
+    setSubLoading(true);
+    try {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data, error: fnErr } = await supabase.functions.invoke("mercadopago-checkout", {
+        body: {
+          userEmail: subEmail.trim().toLowerCase(),
+          isSubscription: true,
+          planType: subPlan
+        }
+      });
+      if (fnErr) throw new Error(fnErr.message);
+      if (data?.init_point) {
+        window.open(data.init_point, "_blank");
+      } else {
+        throw new Error("Link de pagamento não gerado.");
+      }
+    } catch (err: any) {
+      setSubError(err.message || "Erro ao gerar link de assinatura.");
+    } finally {
+      setSubLoading(false);
+    }
+  };
   useEffect(() => {
     if (isFull) return;
     // Primeiro acesso: visível 30s, depois ciclo: 90s ausente, 30s visível
@@ -921,6 +954,61 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
               SIMULADOR CORRETOR ELITE 4.0 - ECOSSISTEMA DA TECNOLOGIA IMOBILIÁRIA{" "}
             </p>
           </div>
+
+          {/* Mercado Pago Subscription Checkout */}
+          <div className="bg-primary/30 border border-gold/30 rounded-lg p-4 text-center text-sm space-y-3 w-full">
+            <h2 className="text-sm font-bold text-gold uppercase tracking-wider">
+              Assinatura Online Mercado Pago
+            </h2>
+            <p className="text-gold/80 text-xs">
+              Se preferir, assine agora mesmo via cartão ou boleto e libere o sistema imediatamente.
+            </p>
+            
+            <div className="space-y-2 text-left">
+              <div>
+                <label className="block text-[10px] font-bold text-gold uppercase mb-1">E-mail de Cadastro/Faturamento</label>
+                <input
+                  type="email"
+                  value={subEmail}
+                  onChange={(e) => setSubEmail(e.target.value)}
+                  placeholder="Seu melhor e-mail"
+                  className="w-full px-3 py-2 text-xs rounded bg-primary/50 border border-gold/30 text-gold focus:outline-none focus:border-gold placeholder:text-gold/30"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-gold uppercase mb-1">Escolha o Plano de Assinatura</label>
+                <select
+                  value={subPlan}
+                  onChange={(e) => setSubPlan(e.target.value as any)}
+                  className="w-full px-2 py-2 text-xs rounded bg-primary/50 border border-gold/30 text-gold focus:outline-none focus:border-gold"
+                >
+                  <option value="mensal">Mensal — R$ 69,90/mês</option>
+                  <option value="semestral">Semestral — R$ 299,90/semestre</option>
+                  <option value="anual">Anual — R$ 479,90/ano</option>
+                  <option value="anual_dev">Anual Completa — R$ 1.900,00/ano</option>
+                </select>
+              </div>
+            </div>
+
+            {subError && <p className="text-destructive text-[11px] font-semibold">{subError}</p>}
+
+            <button
+              onClick={handleMercadoPagoSubscription}
+              disabled={subLoading}
+              className="w-full py-2 rounded gold-gradient text-primary font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+            >
+              {subLoading ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin"></span>
+                  Processando...
+                </>
+              ) : (
+                "Contratar Assinatura"
+              )}
+            </button>
+          </div>
+
           <button
             onClick={() => setScreen("master-modal")}
             className="w-full py-2 rounded-lg border border-gold/30 text-gold text-xs uppercase font-bold hover:bg-gold/10 transition-colors mt-2"

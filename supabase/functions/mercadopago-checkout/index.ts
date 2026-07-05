@@ -13,7 +13,65 @@ serve(async (req) => {
     const ACCESS_TOKEN = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN");
     if (!ACCESS_TOKEN) throw new Error("MERCADO_PAGO_ACCESS_TOKEN não configurado");
 
-    const { userEmail } = await req.json();
+    const { userEmail, isSubscription, planType } = await req.json();
+
+    if (isSubscription) {
+      if (!userEmail) {
+        throw new Error("E-mail do comprador é obrigatório para assinaturas.");
+      }
+
+      let price = 69.90;
+      let frequency = 1;
+      let title = "Simulador Corretor Elite — Assinatura Mensal";
+
+      if (planType === "semestral") {
+        price = 299.90;
+        frequency = 6;
+        title = "Simulador Corretor Elite — Assinatura Semestral";
+      } else if (planType === "anual") {
+        price = 479.90;
+        frequency = 12;
+        title = "Simulador Corretor Elite — Assinatura Anual";
+      } else if (planType === "anual_dev") {
+        price = 1900.00;
+        frequency = 12;
+        title = "Simulador Corretor Elite — Assinatura Anual Completa";
+      }
+
+      const preapprovalPayload = {
+        reason: title,
+        external_reference: `subscription_${planType || "mensal"}_${Date.now()}`,
+        payer_email: userEmail,
+        auto_recurring: {
+          frequency: frequency,
+          frequency_type: "months",
+          transaction_amount: price,
+          currency_id: "BRL"
+        },
+        back_url: "https://simuladorcorretorelitedemo.lovable.app/marketing?subscription=success",
+        status: "pending"
+      };
+
+      const response = await fetch("https://api.mercadopago.com/preapproval", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${ACCESS_TOKEN}`,
+        },
+        body: JSON.stringify(preapprovalPayload),
+      });
+
+      if (!response.ok) {
+        const errBody = await response.text();
+        console.error("MercadoPago Preapproval error:", response.status, errBody);
+        throw new Error(`Erro ao criar assinatura: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return new Response(JSON.stringify({ init_point: data.init_point, sandbox_init_point: data.sandbox_init_point, id: data.id }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const preference = {
       items: [
