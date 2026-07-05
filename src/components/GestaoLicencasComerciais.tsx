@@ -35,7 +35,7 @@ export default function GestaoLicencasComerciais({ onBack, adminPassword }: { on
       });
       if (data?.success && data?.data) setLicenses(data.data);
     } catch (e) {
-      console.error("Erro ao carregar licenças comerciais:", e);
+      console.warn("Erro ao carregar licenças comerciais:", e);
     }
     setLoading(false);
   };

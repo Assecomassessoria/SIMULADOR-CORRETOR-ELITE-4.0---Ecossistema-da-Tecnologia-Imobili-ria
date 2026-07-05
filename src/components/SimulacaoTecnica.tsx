@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, Component, ReactNode } from "react";
 import {
   Share2,
   Printer,
@@ -27,6 +27,28 @@ import SimulacaoCustom from "@/components/SimulacaoCustom";
 import WhatsappQrCard from "@/components/marketing/WhatsappQrCard";
 import { useUnidadeLookup } from "@/hooks/useUnidadeLookup";
 import DocumentModal from "@/components/DocumentModal";
+
+const safeStorage = {
+  getItem(key: string): string | null {
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        return window.localStorage.getItem(key);
+      }
+    } catch (e) {
+      console.warn("Storage item retrieval failed", e);
+    }
+    return null;
+  },
+  setItem(key: string, value: string): void {
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        window.localStorage.setItem(key, value);
+      }
+    } catch (e) {
+      console.warn("Storage item setting failed", e);
+    }
+  }
+};
 
 interface CalcResults {
   descLanc: number;
@@ -123,24 +145,20 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
   const [waConnectOpen, setWaConnectOpen] = useState(false);
   const [docsPanelOpen, setDocsPanelOpen] = useState(() => {
     if (typeof window === "undefined") return true;
-    const saved = localStorage.getItem("elite_docs_panel_open");
+    const saved = safeStorage.getItem("elite_docs_panel_open");
     return saved === null ? true : saved === "1";
   });
   useEffect(() => {
-    try {
-      localStorage.setItem("elite_docs_panel_open", docsPanelOpen ? "1" : "0");
-    } catch {}
+    safeStorage.setItem("elite_docs_panel_open", docsPanelOpen ? "1" : "0");
   }, [docsPanelOpen]);
 
   const [dashboardOpen, setDashboardOpen] = useState(() => {
     if (typeof window === "undefined") return true;
-    const saved = localStorage.getItem("elite_dashboard_open");
+    const saved = safeStorage.getItem("elite_dashboard_open");
     return saved === null ? true : saved === "1";
   });
   useEffect(() => {
-    try {
-      localStorage.setItem("elite_dashboard_open", dashboardOpen ? "1" : "0");
-    } catch {}
+    safeStorage.setItem("elite_dashboard_open", dashboardOpen ? "1" : "0");
   }, [dashboardOpen]);
 
   // Load admin data into fields
@@ -2060,28 +2078,34 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
 
               {/* Bloco 4: Dashboard Interativo */}
               <div id="bloco-4-dashboard" className="bg-card rounded-xl border border-border p-5 space-y-4 shadow-sm scroll-mt-24">
-                <div className="flex items-center justify-between border-b border-primary/20 pb-3">
+                <div 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setDashboardOpen(!dashboardOpen);
+                  }}
+                  className="flex items-center justify-between border-b border-primary/20 pb-3 cursor-pointer hover:bg-primary/5 p-1 rounded-lg transition-all select-none"
+                  role="button"
+                  aria-expanded={dashboardOpen}
+                >
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-gold"></span>
                     <h3 className="text-sm font-extrabold text-primary uppercase tracking-wider">
                       Bloco 4: Dashboard Interativo (Gráficos e Indicadores)
                     </h3>
                   </div>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setDashboardOpen(!dashboardOpen);
-                    }}
+                  <div
                     className="p-1.5 px-3 bg-[#002D72]/5 hover:bg-[#002D72]/15 text-primary border border-[#002D72]/15 rounded-xl flex items-center gap-2 transition-all text-xs font-black uppercase tracking-wider"
-                    aria-expanded={dashboardOpen}
                   >
                     <span>{dashboardOpen ? "Recolher" : "Expandir"}</span>
                     {dashboardOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  </button>
+                  </div>
                 </div>
-                {dashboardOpen && <DashboardInterativo fields={fields} results={results} />}
+                {dashboardOpen && (
+                  <DashboardErrorBoundary>
+                    <DashboardInterativo fields={fields} results={results} />
+                  </DashboardErrorBoundary>
+                )}
               </div>
 
               {/* Bloco 5: Documentos e Relatórios (posicionado na base da página) */}
@@ -2322,68 +2346,183 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
           </div>
         </div>
       )}
+
+      {activeDocModal && (
+        <DocumentModal
+          type={activeDocModal}
+          fields={fields}
+          adminData={adminData}
+          onClose={() => setActiveDocModal(null)}
+        />
+      )}
     </div>
   );
 }
 
-interface DashboardInterativoProps {
-  fields: any;
-  results: any;
+// Safe numeric helper to prevent NaN propagation and division-by-zero or non-finite issues
+function safeNum(v: any): number {
+  if (typeof v !== "number" || Number.isNaN(v) || !Number.isFinite(v)) return 0;
+  return v;
 }
 
-function DashboardInterativo({ fields, results }: DashboardInterativoProps) {
+interface DashboardErrorBoundaryProps {
+  children: ReactNode;
+}
+
+interface DashboardErrorBoundaryState {
+  hasError: boolean;
+  error?: Error;
+}
+
+class DashboardErrorBoundary extends Component<DashboardErrorBoundaryProps, DashboardErrorBoundaryState> {
+  public state: DashboardErrorBoundaryState = {
+    hasError: false
+  };
+
+  public static getDerivedStateFromError(error: Error): DashboardErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  public componentDidCatch(error: Error, errorInfo: any) {
+    console.warn("DashboardErrorBoundary caught an error:", error, errorInfo);
+  }
+
+  public render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-6 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 space-y-2 text-xs">
+          <span className="font-bold text-sm block">⚠️ Erro ao carregar o Dashboard Interativo</span>
+          <p>Não foi possível carregar os gráficos interativos para estes valores de simulação. Verifique se os campos da simulação estão corretos.</p>
+          {this.state.error && (
+            <details className="mt-2 text-[10px] text-rose-600/85 cursor-pointer">
+              <summary className="font-semibold focus:outline-none">Detalhes técnicos do erro</summary>
+              <pre className="mt-1 p-2 bg-rose-100/50 rounded overflow-auto whitespace-pre-wrap max-h-32 text-[9px] text-rose-900 font-mono">
+                {this.state.error.message || String(this.state.error)}
+              </pre>
+            </details>
+          )}
+          <button
+            type="button"
+            onClick={() => this.setState({ hasError: false })}
+            className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg transition-all mt-2"
+          >
+            Tentar Novamente
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+interface DashboardInterativoProps {
+  fields?: any;
+  results?: any;
+}
+
+function DashboardInterativo({ fields = {}, results = {} }: DashboardInterativoProps) {
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const [chartType, setChartType] = useState<"pizza" | "barras">("pizza");
   const [activePreset, setActivePreset] = useState<"geral" | "beneficios" | "recursos" | "pagamentos" | "todos" | "custom">("geral");
+  const [showDemo, setShowDemo] = useState(false);
 
   // States for "Comprometimento de Renda"
   const [rendaInput, setRendaInput] = useState<string>(() => {
     if (typeof window === "undefined") return "";
-    return localStorage.getItem("elite_sim_renda_cliente") || "";
+    return safeStorage.getItem("elite_sim_renda_cliente") || "";
   });
 
   const [vencInterm, setVencInterm] = useState<string>(() => {
     if (typeof window === "undefined") return "10/12/2026";
-    return localStorage.getItem("elite_sim_venc_interm") || "10/12/2026";
+    return safeStorage.getItem("elite_sim_venc_interm") || "10/12/2026";
   });
 
   const [vencChaves, setVencChaves] = useState<string>(() => {
     if (typeof window === "undefined") return "15/06/2027";
-    return localStorage.getItem("elite_sim_venc_chaves") || "15/06/2027";
+    return safeStorage.getItem("elite_sim_venc_chaves") || "15/06/2027";
   });
 
   const [overrideValorInterm, setOverrideValorInterm] = useState<string>("");
   const [overrideValorChaves, setOverrideValorChaves] = useState<string>("");
 
+  // Detect if there is any real simulation data entered
+  const realAvaliacao = safeNum(parseCurrency(fields?.avaliacao));
+  const realLancamento = safeNum(parseCurrency(fields?.lancamento));
+  const hasRealData = realAvaliacao > 0 || realLancamento > 0;
+
+  // Turn off demo mode if real data arrives
+  useEffect(() => {
+    if (hasRealData && showDemo) {
+      setShowDemo(false);
+    }
+  }, [hasRealData]);
+
+  // Effective fields and results used for the calculations in this component
+  const effFields = (showDemo && !hasRealData) ? {
+    avaliacao: "R$ 350.000,00",
+    lancamento: "R$ 330.000,00",
+    campanha: "R$ 15.000,00",
+    aprovacao: "R$ 240.000,00",
+    fgts: "R$ 25.000,00",
+    subsidio: "R$ 8.000,00",
+    casa: "R$ 12.000,00",
+    fluxoConstAdicional: "R$ 1.500,00",
+    nrParcelasFluxo: "18",
+    intermediarias: "R$ 18.000,00",
+    chaves: "R$ 15.000,00",
+    parcInterm: "3",
+    parcelasObras: "36",
+  } : fields;
+
+  const effResults = (showDemo && !hasRealData) ? {
+    descLanc: 20000,
+    documentos: 13200,
+    beneficios: 48200,
+    totalAprov: 285000,
+    atoClienteValor: 12000,
+    entradaConstrutora: 33000,
+    sinalValor: 6000,
+    totalFluxoObrasConst: 15000,
+    valorIntermParc: 6000,
+    subtotal: 27000,
+    valorObras: 750,
+  } : results;
+
   // Get current mapped metrics with their live values and customized colors
-  const avaliacao = parseCurrency(fields.avaliacao) || 0;
-  const lancamento = parseCurrency(fields.lancamento) || 0;
-  const descLanc = results.descLanc || 0;
-  const documentos = results.documentos || 0;
-  const campanha = parseCurrency(fields.campanha) || 0;
-  const totalBeneficios = results.beneficios || 0;
+  const avaliacao = safeNum(parseCurrency(effFields?.avaliacao));
+  const lancamento = safeNum(parseCurrency(effFields?.lancamento));
+  const descLanc = safeNum(effResults?.descLanc);
+  const documentos = safeNum(effResults?.documentos);
+  const campanha = safeNum(parseCurrency(effFields?.campanha));
+  const totalBeneficios = safeNum(effResults?.beneficios);
   
-  const financiamento = parseCurrency(fields.aprovacao) || 0;
-  const fgts = parseCurrency(fields.fgts) || 0;
-  const subsidioFed = parseCurrency(fields.subsidio) || 0;
-  const subsidioEst = parseCurrency(fields.casa) || 0;
-  const totalAprov = results.totalAprov || 0;
+  const financiamento = safeNum(parseCurrency(effFields?.aprovacao));
+  const fgts = safeNum(parseCurrency(effFields?.fgts));
+  const subsidioFed = safeNum(parseCurrency(effFields?.subsidio));
+  const subsidioEst = safeNum(parseCurrency(effFields?.casa));
+  const totalAprov = safeNum(effResults?.totalAprov);
   
-  const atoCliente = results.atoClienteValor || 0;
-  const entradaConstrutora = results.entradaConstrutora || 0;
+  const atoCliente = safeNum(effResults?.atoClienteValor);
+  const entradaConstrutora = safeNum(effResults?.entradaConstrutora);
   const saldoEntrada = Math.max(0, entradaConstrutora - atoCliente);
-  const fluxoConstAdicional = parseCurrency(fields.fluxoConstAdicional) || 0;
-  const totalFluxoObras = results.totalFluxoObrasConst || 0;
-  const totalInterm = parseCurrency(fields.intermediarias) || 0;
-  const valorInterm = results.valorIntermParc || 0;
-  const saldoConst = results.subtotal || 0;
-  const valorParcelas = results.valorObras || 0;
-  const sinalValor = results.sinalValor || 0;
-  const parcelaChaves = parseCurrency(fields.chaves) || 0;
+  const fluxoConstAdicional = safeNum(parseCurrency(effFields?.fluxoConstAdicional));
+  const totalFluxoObras = safeNum(effResults?.totalFluxoObrasConst || effResults?.totalFluxoObras);
+  const totalInterm = safeNum(parseCurrency(effFields?.intermediarias));
+  const valorInterm = safeNum(effResults?.valorIntermParc);
+  const saldoConst = safeNum(effResults?.subtotal);
+  const valorParcelas = safeNum(effResults?.valorObras);
+  const sinalValor = safeNum(effResults?.sinalValor);
+  const parcelaChaves = safeNum(parseCurrency(effFields?.chaves));
 
   // Scalar values (non-monetary)
-  const nrParcelasFluxo = fields.nrParcelasFluxo || "0";
-  const parcIntermText = fields.parcInterm ? `${fields.parcInterm}x` : "0x";
-  const planoMeses = fields.parcelasObras || "—";
+  const nrParcelasFluxo = effFields?.nrParcelasFluxo || "0";
+  const parcIntermText = effFields?.parcInterm ? `${effFields.parcInterm}x` : "0x";
+  const planoMeses = effFields?.parcelasObras || "—";
 
   const allMetrics = [
     { id: "avaliacao", label: "Valor Avaliação", value: avaliacao, color: "#475569", group: "Imóvel" },
@@ -2447,8 +2586,37 @@ function DashboardInterativo({ fields, results }: DashboardInterativoProps) {
 
   const totalSum = activeData.reduce((sum, item) => sum + item.value, 0);
 
+  if (!isMounted) {
+    return (
+      <div className="h-64 flex flex-col items-center justify-center text-center text-xs text-muted-foreground bg-[#F8FAFC]/50 rounded-lg border border-dashed border-primary/20 p-6">
+        <BarChart3 className="w-8 h-8 text-gold animate-bounce mb-2" />
+        <span className="font-bold uppercase tracking-wider mb-1 text-primary">Carregando Dashboard Interativo...</span>
+        <span>Aguarde um instante para os indicadores serem carregados.</span>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 font-sans">
+      {/* Demo Banner Notification */}
+      {showDemo && !hasRealData && (
+        <div className="bg-amber-500/10 border border-amber-500/30 text-amber-700 p-3 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="text-base">📌</span>
+            <div>
+              <span className="font-bold">Modo de demonstração ativo:</span> Exibindo simulação de exemplo. Preencha os valores reais nas seções acima para atualizar o gráfico automaticamente.
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowDemo(false)}
+            className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded text-[10px] font-black uppercase tracking-wider transition-colors shrink-0"
+          >
+            Ocultar Exemplo
+          </button>
+        </div>
+      )}
+
       {/* Dynamic Selector Toolbar */}
       <div className="flex flex-col gap-4 bg-[#F8FAFC] p-4 rounded-xl border border-border">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -2553,7 +2721,14 @@ function DashboardInterativo({ fields, results }: DashboardInterativoProps) {
           <div className="h-64 flex flex-col items-center justify-center text-center text-xs text-muted-foreground bg-muted/20 rounded-lg border border-dashed border-primary/20 p-6">
             <BarChart3 className="w-8 h-8 text-gold animate-pulse mb-2" />
             <span className="font-bold uppercase tracking-wider mb-1 text-primary">Aguardando dados numéricos</span>
-            <span>Preencha os valores nas seções acima para ativar o gráfico interativo de simulação.</span>
+            <span className="mb-3">Preencha os valores nas seções acima para ativar o gráfico interativo de simulação.</span>
+            <button
+              type="button"
+              onClick={() => setShowDemo(true)}
+              className="px-4 py-2 bg-[#002D72] text-white hover:bg-[#002D72]/90 rounded-lg text-xs font-bold uppercase transition-all shadow-sm"
+            >
+              Ativar Modo Demonstração (Gráfico Exemplo)
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
@@ -2561,7 +2736,7 @@ function DashboardInterativo({ fields, results }: DashboardInterativoProps) {
             <div className="lg:col-span-7 h-64 w-full flex items-center justify-center relative bg-[#F8FAFC]/50 rounded-xl border border-border p-3">
               {chartType === "pizza" ? (
                 <>
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height={240}>
                     <PieChart>
                       <Pie
                         data={activeData}
@@ -2574,7 +2749,7 @@ function DashboardInterativo({ fields, results }: DashboardInterativoProps) {
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                      <Tooltip formatter={(value: any) => formatCurrency(Number(value) || 0)} />
                     </PieChart>
                   </ResponsiveContainer>
                   {/* Central Text on Donut */}
@@ -2584,7 +2759,7 @@ function DashboardInterativo({ fields, results }: DashboardInterativoProps) {
                   </div>
                 </>
               ) : (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height={240}>
                   <BarChart data={activeData} margin={{ top: 15, right: 10, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
                     <XAxis
@@ -2600,7 +2775,7 @@ function DashboardInterativo({ fields, results }: DashboardInterativoProps) {
                       tickFormatter={(v) => `R$ ${Math.round(v / 1000)}k`}
                       width={55}
                     />
-                    <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                    <Tooltip formatter={(value: any) => formatCurrency(Number(value) || 0)} />
                     <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                       {activeData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
@@ -2663,7 +2838,9 @@ function DashboardInterativo({ fields, results }: DashboardInterativoProps) {
         <div className="rounded-xl p-4 bg-slate-50 border border-slate-200/80 flex items-center justify-between">
           <div className="space-y-0.5">
             <span className="text-[9px] font-black uppercase tracking-widest text-[#002D72]">Nº Parcelas Fluxo</span>
-            <p className="text-lg font-black text-[#002D72]">{nrParcelasFluxo} parcelas</p>
+            <p className="text-lg font-black text-[#002D72]">
+              {nrParcelasFluxo} {nrParcelasFluxo === "1" || nrParcelasFluxo === 1 ? "parcela" : "parcelas"}
+            </p>
             <p className="text-[10px] text-muted-foreground">Frequência mensal do fluxo de obras</p>
           </div>
           <div className="bg-[#002D72]/5 p-2 rounded-lg text-[#002D72] text-sm font-bold">
@@ -2687,7 +2864,9 @@ function DashboardInterativo({ fields, results }: DashboardInterativoProps) {
         <div className="rounded-xl p-4 bg-amber-50 border border-amber-200 flex items-center justify-between md:col-start-1 md:col-span-2">
           <div className="space-y-0.5">
             <span className="text-[9px] font-black uppercase tracking-widest text-amber-800">Plano Construtora (meses)</span>
-            <p className="text-lg font-black text-amber-700">{planoMeses} meses</p>
+            <p className="text-lg font-black text-amber-700">
+              {planoMeses} {planoMeses === "1" || planoMeses === 1 || String(planoMeses) === "1" ? "mês" : "meses"}
+            </p>
             <p className="text-[10px] text-amber-600">Tempo de vigência acordado no plano de parcelamento estruturado</p>
           </div>
           <div className="bg-amber-100 p-2.5 rounded-xl text-amber-700 text-base font-bold">
@@ -2724,7 +2903,7 @@ function DashboardInterativo({ fields, results }: DashboardInterativoProps) {
           const rendaCalculada = parseCurrency(rendaInput) || 0;
           const instValueCalc = valorParcelas;
           const intermValueCalc = overrideValorInterm ? parseCurrency(overrideValorInterm) : valorInterm;
-          const chavesValueCalc = overrideValorChaves ? parseCurrency(overrideValorChaves) : (parseCurrency(fields.chaves) || 0);
+          const chavesValueCalc = overrideValorChaves ? parseCurrency(overrideValorChaves) : (parseCurrency(fields?.chaves) || 0);
 
           const instPct = rendaCalculada > 0 ? (instValueCalc / rendaCalculada) * 100 : 0;
           const intermTotalCalc = intermValueCalc + instValueCalc;
@@ -2747,7 +2926,7 @@ function DashboardInterativo({ fields, results }: DashboardInterativoProps) {
                       onChange={(e) => {
                         const formatted = formatCurrencyInput(e.target.value);
                         setRendaInput(formatted);
-                        localStorage.setItem("elite_sim_renda_cliente", formatted);
+                        safeStorage.setItem("elite_sim_renda_cliente", formatted);
                       }}
                       className="w-full bg-[#0A192F] text-white font-extrabold text-sm rounded-lg pl-9 pr-3 py-1.5 border border-slate-600 focus:outline-none focus:border-[#C5A059] transition-colors font-mono"
                     />
@@ -2762,7 +2941,7 @@ function DashboardInterativo({ fields, results }: DashboardInterativoProps) {
                     value={vencInterm}
                     onChange={(e) => {
                       setVencInterm(e.target.value);
-                      localStorage.setItem("elite_sim_venc_interm", e.target.value);
+                      safeStorage.setItem("elite_sim_venc_interm", e.target.value);
                     }}
                     className="w-full bg-[#0A192F] text-white text-xs rounded-lg px-3 py-1.5 border border-slate-600 focus:outline-none focus:border-[#C5A059] transition-colors"
                   />
@@ -2790,7 +2969,7 @@ function DashboardInterativo({ fields, results }: DashboardInterativoProps) {
                     value={vencChaves}
                     onChange={(e) => {
                       setVencChaves(e.target.value);
-                      localStorage.setItem("elite_sim_venc_chaves", e.target.value);
+                      safeStorage.setItem("elite_sim_venc_chaves", e.target.value);
                     }}
                     className="w-full bg-[#0A192F] text-white text-xs rounded-lg px-3 py-1.5 border border-slate-600 focus:outline-none focus:border-[#C5A059] transition-colors"
                   />
@@ -2799,7 +2978,7 @@ function DashboardInterativo({ fields, results }: DashboardInterativoProps) {
                     <span className="absolute left-3 top-1.5 text-[11px] text-slate-400 font-bold">R$</span>
                     <input
                       type="text"
-                      placeholder={formatCurrency(parseCurrency(fields.chaves) || 0)}
+                      placeholder={formatCurrency(parseCurrency(fields?.chaves) || 0)}
                       value={overrideValorChaves}
                       onChange={(e) => {
                         const formatted = formatCurrencyInput(e.target.value);
@@ -2953,15 +3132,6 @@ function DashboardInterativo({ fields, results }: DashboardInterativoProps) {
           );
         })()}
       </div>
-
-      {activeDocModal && (
-        <DocumentModal
-          type={activeDocModal}
-          fields={fields}
-          adminData={adminData}
-          onClose={() => setActiveDocModal(null)}
-        />
-      )}
     </div>
   );
 }

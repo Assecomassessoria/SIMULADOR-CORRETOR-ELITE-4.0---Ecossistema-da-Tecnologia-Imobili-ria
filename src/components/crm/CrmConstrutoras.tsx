@@ -53,7 +53,7 @@ const CrmConstrutoras = ({ onRefresh }: CrmConstrutorasProps) => {
       const data = await fetchConstrutoras();
       setConstrutoras(data);
     } catch (err) {
-      console.error('Erro ao carregar construtoras:', err);
+      console.warn('Erro ao carregar construtoras:', err);
     }
   }, []);
 

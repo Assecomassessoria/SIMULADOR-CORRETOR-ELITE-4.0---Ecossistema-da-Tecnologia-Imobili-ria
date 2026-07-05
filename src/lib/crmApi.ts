@@ -88,11 +88,33 @@ async function crmRequest(action: string, params: Record<string, any> = {}) {
     const newToken = await recoverSession();
     if (newToken) {
       result = await invoke(newToken);
+    } else {
+      console.warn('[CRM] Session invalid and email is missing or recover failed, clearing local session.');
+      localStorage.removeItem("elite_login_date");
+      clearSessionToken();
     }
   }
 
-  if (result.error) throw new Error(result.error.message || 'Erro na requisição CRM');
-  if (result.data && !result.data.success) throw new Error(result.data.error || 'Erro na operação CRM');
+  const isListAction = action.endsWith('_list');
+
+  if (result.error) {
+    const errMsg = result.error.message || 'Erro na requisição CRM';
+    console.warn(`[CRM] Request error for action ${action}:`, errMsg);
+    if (isListAction) {
+      return { success: false, error: errMsg, data: [] };
+    }
+    throw new Error(errMsg);
+  }
+
+  if (result.data && !result.data.success) {
+    const errMsg = result.data.error || 'Erro na operação CRM';
+    console.warn(`[CRM] Operation error for action ${action}:`, errMsg);
+    if (isListAction) {
+      return { success: false, error: errMsg, data: [] };
+    }
+    throw new Error(errMsg);
+  }
+
   return result.data;
 }
 

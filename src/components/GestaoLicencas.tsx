@@ -35,7 +35,7 @@ export default function GestaoLicencas({ onBack, adminPassword }: { onBack: () =
       const result = await callManageLicenses("list", adminPassword);
       if (result?.data) setLicenses(result.data);
     } catch (e) {
-      console.error("Erro ao carregar licenças:", e);
+      console.warn("Erro ao carregar licenças:", e);
     }
     setLoading(false);
   };

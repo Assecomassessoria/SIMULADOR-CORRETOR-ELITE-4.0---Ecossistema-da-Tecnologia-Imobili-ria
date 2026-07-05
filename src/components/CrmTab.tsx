@@ -25,7 +25,7 @@ const CrmTab = ({ isVisitor = false }: { isVisitor?: boolean }) => {
       const data = await fetchLeadsApi();
       setLeads(data);
     } catch (err) {
-      console.error('Erro ao carregar leads:', err);
+      console.warn('Erro ao carregar leads:', err);
     }
   }, []);
 

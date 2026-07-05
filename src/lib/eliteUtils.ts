@@ -4,7 +4,10 @@ export function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 }
 
-export function parseCurrency(value: string): number {
+export function parseCurrency(value: any): number {
+  if (value === null || value === undefined) return 0;
+  if (typeof value === "number") return Number.isNaN(value) ? 0 : value;
+  if (typeof value !== "string") return 0;
   if (!value) return 0;
   return parseFloat(value.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
 }

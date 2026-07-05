@@ -30,7 +30,7 @@ const CrmTasks = ({ leads }: CrmTasksProps) => {
       const data = await fetchTasksApi();
       setTasks(data);
     } catch (err) {
-      console.error('Erro ao carregar tarefas:', err);
+      console.warn('Erro ao carregar tarefas:', err);
     }
   };
 
