@@ -508,7 +508,7 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
       fields.chaves ? `Parcela Chaves: ${fields.chaves}` : "",
       results.subtotal ? `Valor Construtora: ${formatCurrency(results.subtotal)}` : "",
       fields.parcelasObras ? `Plano de Obras: ${fields.parcelasObras} meses` : "",
-      parseCurrency(fields.lancamento) && results.subtotal ? `Percentual: ${((results.subtotal / parseCurrency(fields.lancamento)) * 100).toFixed(2)}%` : "",
+      parseCurrency(fields.lancamento) && results.subtotal ? `Percentual Total: ${((results.subtotal / parseCurrency(fields.lancamento)) * 100).toFixed(2)}%` : "",
       results.valorObras ? `Valor Parcelas Obras: ${formatCurrency(results.valorObras)}` : "",
       `\n🔑 *SALDO FINANCIAMENTO PÓS-ENTREGA (PÓS-OBRAS)*`,
       `━━━━━━━━━━━━━━━━━━━━━`,
@@ -651,7 +651,7 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
             <div class="row">
               <div class="field"><label>Valor Construtora</label><span>${formatCurrency(results.subtotal)}</span></div>
               <div class="field"><label>Plano (meses)</label><span>${fields.parcelasObras} meses</span></div>
-              <div class="field"><label>Percentual</label><span>${(parseCurrency(fields.lancamento) ? (results.subtotal / parseCurrency(fields.lancamento)) * 100 : 0).toFixed(2)}%</span></div>
+              <div class="field"><label>Percentual Total</label><span>${(parseCurrency(fields.lancamento) ? (results.subtotal / parseCurrency(fields.lancamento)) * 100 : 0).toFixed(2)}%</span></div>
               <div class="field"><label>Valor Parcelas</label><span class="highlight">${formatCurrency(results.valorObras)}</span></div>
             </div>
           </div>
@@ -776,7 +776,7 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
     <tr><td>Parcelas Intermediárias (${nInterm}x)</td><td>${formatCurrency(results.valorIntermParc)}</td></tr>
     <tr><td>Parcela Chaves</td><td>${chaves}</td></tr>
     <tr><td>Valor Construtora</td><td>${formatCurrency(results.subtotal)}</td></tr>
-    <tr><td>Percentual (Valor Construtora)</td><td>${(parseCurrency(fields.lancamento) ? (results.subtotal / parseCurrency(fields.lancamento)) * 100 : 0).toFixed(2)}%</td></tr>
+    <tr><td>Percentual Total (Valor Construtora)</td><td>${(parseCurrency(fields.lancamento) ? (results.subtotal / parseCurrency(fields.lancamento)) * 100 : 0).toFixed(2)}%</td></tr>
     <tr><td>Plano de Obras</td><td>${fields.parcelasObras || "0"} meses</td></tr>
     <tr><td>Valor Parcelas Obras</td><td class="highlight">${formatCurrency(results.valorObras)}</td></tr>
     <tr><td>FGTS</td><td>${fgts}</td></tr>
@@ -1979,8 +1979,8 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-extrabold text-muted-foreground mb-1 uppercase tracking-wider truncate" title="Percentual">
-                            Percentual
+                          <label className="block text-[10px] font-extrabold text-muted-foreground mb-1 uppercase tracking-wider truncate" title="Percentual Total">
+                            Percentual Total
                           </label>
                           <div className="px-2 py-2.5 border border-border rounded-md text-xs font-bold text-primary bg-[#F8FAFC] truncate" title={`${subtotalPercent.toFixed(2)}%`}>
                             {subtotalPercent.toFixed(2)}%
@@ -1997,6 +1997,9 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
                             className="w-full px-2 py-2 border-2 border-gold/70 rounded-md text-xs font-bold text-primary bg-gold/5 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold"
                             title="Você pode digitar o valor da parcela para recalcular o plano de meses"
                           />
+                          <div className="text-[9px] text-muted-foreground mt-1 leading-tight font-medium">
+                            Total valor parcelas {formatCurrency(Number(fields.parcelasObras || 0) * results.valorObras)}
+                          </div>
                         </div>
                       </div>
 
@@ -2068,6 +2071,9 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
                             </label>
                             <div className="px-2 py-2.5 border-2 border-gold/70 rounded-md text-xs font-bold text-primary bg-gold/5 truncate" title={`${formatCurrency(results.prestacaoEstimadaPosObras)}/mês`}>
                               {formatCurrency(results.prestacaoEstimadaPosObras)}/mês
+                            </div>
+                            <div className="text-[9px] text-muted-foreground mt-1 leading-tight font-medium">
+                              Total prestação {formatCurrency(Number(fields.planoMesesPosObras || 0) * results.prestacaoEstimadaPosObras)} (demonstrativo)
                             </div>
                           </div>
                         </div>
