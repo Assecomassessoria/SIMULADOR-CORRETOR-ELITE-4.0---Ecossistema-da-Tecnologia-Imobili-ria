@@ -98,7 +98,7 @@ export default function DocumentModal({ type, fields, adminData, onClose }: Docu
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col bg-slate-950/80 backdrop-blur-sm overflow-y-auto p-4 md:p-8 print:p-0 print:bg-white print:backdrop-blur-none">
+    <div id="print-modal-container" className="fixed inset-0 z-[9999] flex flex-col bg-slate-950/80 backdrop-blur-sm overflow-y-auto p-4 md:p-8 print:p-0 print:bg-white print:backdrop-blur-none">
       {/* Control panel header - hidden in print */}
       <div className="flex items-center justify-between max-w-4xl w-full mx-auto bg-slate-900 border border-slate-800 text-white rounded-t-xl px-5 py-4 shadow-xl print:hidden shrink-0">
         <div className="flex flex-col">
@@ -139,13 +139,55 @@ export default function DocumentModal({ type, fields, adminData, onClose }: Docu
         {/* Style block dedicated to printable page styles when rendering inside browser */}
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
-            body { background: white !important; color: black !important; }
-            .print\\:hidden, header, footer, .fixed, .absolute { display: none !important; }
-            input, select, textarea { border: none !important; background: transparent !important; padding: 0 !important; color: black !important; -webkit-appearance: none; -moz-appearance: none; appearance: none; }
-            input::placeholder { color: transparent !important; }
-            .print\\:p-0 { padding: 0 !important; }
-            .print\\:border-none { border: none !important; }
-            .print\\:shadow-none { box-shadow: none !important; }
+            body * {
+              visibility: hidden !important;
+            }
+            #print-modal-container, #print-modal-container * {
+              visibility: visible !important;
+            }
+            #print-modal-container {
+              position: absolute !important;
+              left: 0 !important;
+              top: 0 !important;
+              width: 100% !important;
+              height: auto !important;
+              overflow: visible !important;
+              display: block !important;
+              background: white !important;
+              color: black !important;
+              padding: 0 !important;
+              margin: 0 !important;
+            }
+            #print-modal-container .print\\:hidden,
+            #print-modal-container .print\\:hidden * {
+              display: none !important;
+              visibility: hidden !important;
+            }
+            body { 
+              background: white !important; 
+              color: black !important; 
+            }
+            input, select, textarea { 
+              border: none !important; 
+              background: transparent !important; 
+              padding: 0 !important; 
+              color: black !important; 
+              -webkit-appearance: none; 
+              -moz-appearance: none; 
+              appearance: none; 
+            }
+            input::placeholder { 
+              color: transparent !important; 
+            }
+            /* Style for document card during print */
+            #print-modal-container .max-w-4xl {
+              max-width: 100% !important;
+              width: 100% !important;
+              box-shadow: none !important;
+              border: none !important;
+              padding: 0 !important;
+              margin: 0 !important;
+            }
           }
         `}} />
 
