@@ -64,6 +64,17 @@ export default function DocumentModal({ type, fields, adminData, onClose }: Docu
   const [correspondenteAnterior, setCorrespondenteAnterior] = useState("");
   const [telefoneContato, setTelefoneContato] = useState("");
 
+  // Renda Informal Specifics
+  const [dataEmissaoRG, setDataEmissaoRG] = useState("");
+  const [orgaoEmissor, setOrgaoEmissor] = useState("SSP/SP");
+  const [telefoneEmpresa, setTelefoneEmpresa] = useState("");
+  const [rendaExtenso, setRendaExtenso] = useState("");
+  const [rendaInicioDia, setRendaInicioDia] = useState("01");
+  const [rendaInicioMes, setRendaInicioMes] = useState("01");
+  const [rendaInicioAno, setRendaInicioAno] = useState("2025");
+  const [dataSorocabaDia, setDataSorocabaDia] = useState("");
+  const [dataSorocabaMes, setDataSorocabaMes] = useState("");
+
   // Auto-calculated dates
   const [dataTexto, setDataTexto] = useState("");
   const [hojeISO, setHojeISO] = useState("");
@@ -78,6 +89,8 @@ export default function DocumentModal({ type, fields, adminData, onClose }: Docu
     const mesNome = meses[hoje.getMonth()];
     setDataTexto(`São Paulo, ${diaStr} de ${mesNome} de ${hoje.getFullYear()}`);
     setHojeISO(hoje.toISOString().split("T")[0]);
+    setDataSorocabaDia(diaStr);
+    setDataSorocabaMes(mesNome);
   }, []);
 
   const handlePrint = () => {
@@ -92,6 +105,8 @@ export default function DocumentModal({ type, fields, adminData, onClose }: Docu
       text = `Olá ${cliente}, segue sua Ficha Cadastral Caixa preenchida para prosseguirmos com a sua simulação técnica e aprovação.`;
     } else if (type === "cancelamento") {
       text = `Olá ${cliente}, segue a Carta de Cancelamento SICAQ preenchida e pronta para assinatura.`;
+    } else if (type === "renda_informal") {
+      text = `Olá ${cliente}, segue a Declaração de Renda Informal preenchida e pronta para assinatura.`;
     }
     const phone = adminData?.whatsapp?.replace(/\D/g, "") || "";
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, "_blank");
@@ -109,6 +124,7 @@ export default function DocumentModal({ type, fields, adminData, onClose }: Docu
             {type === "editavel" && "Ficha Cadastral de Cliente (Modo Livre)"}
             {type === "parentesco" && "Declaração de Parentesco e Ausência de Rendimentos"}
             {type === "cancelamento" && "Carta de Cancelamento SICAQ"}
+            {type === "renda_informal" && "Declaração de Renda Informal"}
           </h3>
         </div>
         <div className="flex items-center gap-2">
@@ -667,6 +683,200 @@ export default function DocumentModal({ type, fields, adminData, onClose }: Docu
                   <span>Telefone de Contato:</span>
                   <input type="text" value={telefoneContato} onChange={(e) => setTelefoneContato(e.target.value)} placeholder="(00) 00000-0000" className="border-b border-dashed border-slate-400 px-2 py-0.5 w-40 outline-none focus:border-blue-900 font-bold text-blue-900" />
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================== 6. DECLARAÇÃO DE RENDA INFORMAL ==================== */}
+        {type === "renda_informal" && (
+          <div className="space-y-8 font-sans text-sm text-black leading-relaxed md:px-8 py-4">
+            {/* Header / Title */}
+            <h1 className="text-center font-bold text-base uppercase tracking-wider text-black underline mb-12">
+              Declaração de Renda Informal emitida pelo Cliente
+            </h1>
+
+            <div className="text-justify space-y-6">
+              <p className="leading-loose">
+                Eu,{" "}
+                <input
+                  type="text"
+                  value={cliente}
+                  onChange={(e) => setCliente(e.target.value)}
+                  placeholder="Nome completo do proponente"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 outline-none focus:border-blue-900 w-[300px]"
+                />
+                , portador do documento de identidade número{" "}
+                <input
+                  type="text"
+                  value={rg}
+                  onChange={(e) => setRg(e.target.value)}
+                  placeholder="RG do proponente"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 text-center outline-none focus:border-blue-900 w-[150px]"
+                />
+                , emitido em{" "}
+                <input
+                  type="text"
+                  value={dataEmissaoRG}
+                  onChange={(e) => setDataEmissaoRG(e.target.value)}
+                  placeholder="Data Emissão"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 text-center outline-none focus:border-blue-900 w-[100px]"
+                />
+                , pelo Órgão Emissor/UF:{" "}
+                <input
+                  type="text"
+                  value={orgaoEmissor}
+                  onChange={(e) => setOrgaoEmissor(e.target.value)}
+                  placeholder="SSP/SP"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 text-center outline-none focus:border-blue-900 w-[80px]"
+                />{" "}
+                e CPF:{" "}
+                <input
+                  type="text"
+                  value={cpf}
+                  onChange={(e) => setCpf(e.target.value)}
+                  placeholder="000.000.000-00"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 text-center outline-none focus:border-blue-900 w-[140px]"
+                />
+                , residindo na Rua{" "}
+                <input
+                  type="text"
+                  value={endereco}
+                  onChange={(e) => setEndereco(e.target.value)}
+                  placeholder="Endereço residencial completo"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 outline-none focus:border-blue-900 w-[320px]"
+                />
+                , Bairro:{" "}
+                <input
+                  type="text"
+                  value={bairro}
+                  onChange={(e) => setBairro(e.target.value)}
+                  placeholder="Bairro"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 text-center outline-none focus:border-blue-900 w-[150px]"
+                />
+                , Cidade:{" "}
+                <input
+                  type="text"
+                  value={cidade}
+                  onChange={(e) => setCidade(e.target.value)}
+                  placeholder="Cidade"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 text-center outline-none focus:border-blue-900 w-[180px]"
+                />
+                .
+              </p>
+
+              <p className="leading-loose">
+                Telefone da Empresa / Empregador:{" "}
+                <input
+                  type="text"
+                  value={telefoneEmpresa}
+                  onChange={(e) => setTelefoneEmpresa(e.target.value)}
+                  placeholder="(00) 00000-0000"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 outline-none focus:border-blue-900 w-[220px]"
+                />
+              </p>
+
+              <p className="leading-loose mt-8">
+                Declaro para os devidos fins, sob as penas da lei que o rendimento médio mensal referente aos últimos seis meses provenientes da minha atividade como{" "}
+                <input
+                  type="text"
+                  value={profissao}
+                  onChange={(e) => setProfissao(e.target.value)}
+                  placeholder="Sua atividade / profissão"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 outline-none focus:border-blue-900 w-[220px]"
+                />
+                , foi de R${" "}
+                <input
+                  type="text"
+                  value={rendaMensal}
+                  onChange={(e) => setRendaMensal(e.target.value)}
+                  placeholder="0.000,00"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 text-center outline-none focus:border-blue-900 w-[110px]"
+                />{" "}
+                (
+                <input
+                  type="text"
+                  value={rendaExtenso}
+                  onChange={(e) => setRendaExtenso(e.target.value)}
+                  placeholder="Valor por extenso"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 text-center outline-none focus:border-blue-900 w-[240px]"
+                />
+                ) tendo a renda com início em{" "}
+                <input
+                  type="text"
+                  value={rendaInicioDia}
+                  onChange={(e) => setRendaInicioDia(e.target.value)}
+                  placeholder="01"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 text-center outline-none focus:border-blue-900 w-[30px]"
+                />
+                /
+                <input
+                  type="text"
+                  value={rendaInicioMes}
+                  onChange={(e) => setRendaInicioMes(e.target.value)}
+                  placeholder="01"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 text-center outline-none focus:border-blue-900 w-[30px]"
+                />
+                /
+                <input
+                  type="text"
+                  value={rendaInicioAno}
+                  onChange={(e) => setRendaInicioAno(e.target.value)}
+                  placeholder="2025"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 text-center outline-none focus:border-blue-900 w-[55px]"
+                />
+                .
+              </p>
+
+              <p className="leading-loose mt-8">
+                As informações acima prestadas constituem a expressão da verdade.
+              </p>
+
+              {/* Signature section */}
+              <div className="pt-12 space-y-8">
+                <div className="w-80 border-t border-black"></div>
+                <p className="leading-normal">
+                  Sorocaba,{" "}
+                  <input
+                    type="text"
+                    value={dataSorocabaDia}
+                    onChange={(e) => setDataSorocabaDia(e.target.value)}
+                    placeholder="Dia"
+                    className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 text-center outline-none focus:border-blue-900 w-[40px]"
+                  />{" "}
+                  de{" "}
+                  <input
+                    type="text"
+                    value={dataSorocabaMes}
+                    onChange={(e) => setDataSorocabaMes(e.target.value)}
+                    placeholder="Mês"
+                    className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 text-center outline-none focus:border-blue-900 w-[120px]"
+                  />{" "}
+                  de 2026.
+                </p>
+                <p className="leading-normal pt-4">
+                  Nome:{" "}
+                  <input
+                    type="text"
+                    value={cliente}
+                    onChange={(e) => setCliente(e.target.value)}
+                    placeholder="Nome completo"
+                    className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 outline-none focus:border-blue-900 w-[350px]"
+                  />
+                </p>
+              </div>
+
+              {/* Eco-system banner */}
+              <div className="mt-16 p-4 border-2 border-dashed border-slate-400 bg-slate-50 text-center font-bold text-xs space-y-1 print:hidden">
+                <div className="text-slate-800">Simulador Corretor Elite - Ecossistema da Tecnologia Imobiliária</div>
+                <a
+                  href="https://simuladorcorretorelite.com.br"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-blue-700 underline hover:text-blue-900 font-mono"
+                >
+                  https://simuladorcorretorelite.com.br
+                </a>
               </div>
             </div>
           </div>

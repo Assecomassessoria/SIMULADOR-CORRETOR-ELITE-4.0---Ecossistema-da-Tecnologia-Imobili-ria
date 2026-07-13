@@ -189,7 +189,7 @@ const Index = () => {
     <div className="min-h-screen bg-background pb-20">
       {/* VISITOR BANNER */}
       {isVisitor && (
-        <div className="fixed top-0 left-0 right-0 z-[60] bg-amber-600 text-white text-center py-2 text-xs font-bold tracking-wide shadow-lg">
+        <div className="fixed top-0 left-0 right-0 z-[60] bg-amber-600 text-white text-center py-2 text-xs font-bold tracking-wide shadow-lg print:hidden">
           🔒 MODO DEMONSTRAÇÃO / VISITANTE — Fale com (11) 94677-0656 Lourenço Junior para ativar sua licença anual.
         </div>
       )}
@@ -200,7 +200,7 @@ const Index = () => {
           href="https://simuladorcorretorelite.com.br"
           target="_blank"
           rel="noopener noreferrer"
-          className="fixed top-3 right-3 px-4 py-2.5 rounded shadow-lg text-xs font-extrabold uppercase tracking-wider text-center leading-tight no-underline z-50 animate-[pulse_1.5s_ease-in-out_infinite]"
+          className="fixed top-3 right-3 px-4 py-2.5 rounded shadow-lg text-xs font-extrabold uppercase tracking-wider text-center leading-tight no-underline z-50 animate-[pulse_1.5s_ease-in-out_infinite] print:hidden"
           style={{
             background: "linear-gradient(135deg, hsl(42 60% 50%) 0%, hsl(42 70% 40%) 100%)",
             color: "hsl(220 70% 10%)",
@@ -214,7 +214,7 @@ const Index = () => {
 
       {/* Header */}
       <header
-        className={`text-gold border-b-4 sticky z-40 ${isVisitor ? "top-8" : "top-0"} ${
+        className={`text-gold border-b-4 sticky z-40 print:hidden ${isVisitor ? "top-8" : "top-0"} ${
           isFull ? "elite-gradient border-gold/50" : "bg-card border-gold-bright/50"
         }`}
       >
@@ -315,7 +315,7 @@ const Index = () => {
       </main>
 
       {/* Footer */}
-      <div className="max-w-6xl mx-auto px-4 py-3 text-center border-t border-border">
+      <div className="max-w-6xl mx-auto px-4 py-3 text-center border-t border-border print:hidden">
         <p className="text-[10px] text-muted-foreground leading-relaxed">
           © Todos os direitos reservados <strong>INFORMETEC - Tecnologia em Informações</strong> - CNPJ
           00.921557/0001-65 | Apoio: <strong>RODRIGO DIAS</strong> - Gestão TI
@@ -326,7 +326,7 @@ const Index = () => {
       </div>
 
       {/* Bottom Tab Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 elite-gradient border-t-2 border-gold/30">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 elite-gradient border-t-2 border-gold/30 print:hidden">
         <div className="max-w-6xl mx-auto flex">
           {tabs.map((tab) => (
             <button

@@ -1193,6 +1193,14 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
     setActiveDocModal("parentesco");
   };
 
+  const handleRendaInformal = () => {
+    if (isVisitor) {
+      alert("Função disponível apenas para assinantes ativos.");
+      return;
+    }
+    setActiveDocModal("renda_informal");
+  };
+
   const unusedDeclaracaoParentesco = () => {
     const proponente = "";
     const cpfProp = fields.infoCpf || "";
@@ -1453,7 +1461,7 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
     <div
       className={`space-y-6 animate-fade-in ${isVisitor ? "[&_input]:pointer-events-none [&_input]:opacity-70 [&_textarea]:pointer-events-none [&_select]:pointer-events-none" : ""}`}
     >
-      <div className="flex flex-col lg:flex-row gap-6 items-start w-full">
+      <div className="flex flex-col lg:flex-row gap-6 items-start w-full print:hidden">
         {/* MENU LATERAL ESQUERDO (Navegação Principal) */}
         <div className="w-full lg:w-64 shrink-0 flex flex-col gap-2 bg-card p-4 rounded-xl border border-border shadow-sm lg:sticky lg:top-4">
           <div className="pb-2 border-b border-border mb-2">
@@ -2290,6 +2298,15 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
                                 className="w-full text-left px-3 py-2 text-xs rounded hover:bg-accent hover:text-accent-foreground transition-colors"
                               >
                                 5 - Declaração de Parentesco
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setDocMenuOpen(false);
+                                  handleRendaInformal();
+                                }}
+                                className="w-full text-left px-3 py-2 text-xs rounded hover:bg-accent hover:text-accent-foreground transition-colors"
+                              >
+                                6 - Declaração de Renda Informal
                               </button>
                             </div>
                           )}
