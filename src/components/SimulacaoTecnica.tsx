@@ -55,6 +55,7 @@ interface CalcResults {
   documentos: number;
   beneficios: number;
   totalAprov: number;
+  percAprov: number;
   futuroCaixa: number;
   entradaConstrutora: number;
   atoClienteValor: number;
@@ -178,6 +179,7 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
     documentos: 0,
     beneficios: 0,
     totalAprov: 0,
+    percAprov: 0,
     futuroCaixa: 0,
     entradaConstrutora: 0,
     atoClienteValor: 0,
@@ -253,12 +255,16 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
       totalAprovAjustado = Math.max(0, totalAprovAjustado - totalFluxoObrasConst);
     }
 
+    const baseVenda = Math.max(0, lanc - camp);
+    const percAprov = baseVenda > 0 ? (totalAprovAjustado / baseVenda) * 100 : 0;
+
     setResults({
       descLanc,
       documentos: docs,
       beneficios,
       percBeneficios,
       totalAprov: totalAprovAjustado,
+      percAprov,
       futuroCaixa,
       entradaConstrutora,
       atoClienteValor,
@@ -486,7 +492,11 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
       fields.fgts ? `FGTS: ${fields.fgts}` : "",
       fields.subsidio ? `Subsídio Gov. Federal: ${fields.subsidio}` : "",
       fields.casa ? `Subsídio Estadual: ${fields.casa}` : "",
-      results.totalAprov ? `✅ Total Aprovação: ${formatCurrency(results.totalAprov)}` : "",
+      results.totalAprov
+        ? `✅ Total Aprovação: ${formatCurrency(results.totalAprov)}${
+            results.percAprov > 0 ? ` (${results.percAprov.toFixed(2).replace(".", ",")}%)` : ""
+          }`
+        : "",
       "",
       `📊 *ENTRADA CONSTRUTORA*`,
       `━━━━━━━━━━━━━━━━━━━━━`,
@@ -622,7 +632,7 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
               <div class="field"><label>FGTS | Subsidio Estadual</label><span>${fields.casa || "-"}</span></div>
             </div>
             <div class="row">
-              <div class="field"><label>Total Aprovação</label><span class="highlight">${formatCurrency(results.totalAprov)}</span></div>
+              <div class="field"><label>Total Aprovação</label><span class="highlight">${formatCurrency(results.totalAprov)}${results.percAprov > 0 ? ` (${results.percAprov.toFixed(2).replace(".", ",")}%)` : ""}</span></div>
             </div>
           </div>
 
@@ -792,7 +802,7 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
   <h2>5. Aprovação CAIXA</h2>
   <table>
     <tr><th>Simulação CAIXA</th><td>${fields.aprovacao || "—"}</td><th>Parcela Futura</th><td>${fields.parcelaCaixa || "—"}</td></tr>
-    <tr><th>Total Aprovação</th><td colspan="3" class="highlight">${formatCurrency(results.totalAprov)}</td></tr>
+    <tr><th>Total Aprovação</th><td colspan="3" class="highlight">${formatCurrency(results.totalAprov)}${results.percAprov > 0 ? ` (${results.percAprov.toFixed(2).replace(".", ",")}%)` : ""}</td></tr>
   </table>
 
   <div class="legal">
@@ -1812,7 +1822,12 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
                     onChange={(v) => handleCurrencyInput("casa", v)}
                   />
                 </div>
-                <ResultField label="Total Aprovação / Financiamento" value={formatCurrency(results.totalAprov)} className="mt-3 bg-blue-50/30" />
+                <ResultField
+                  label="Total Aprovação / Financiamento"
+                  value={formatCurrency(results.totalAprov)}
+                  className="mt-3 bg-blue-50/30"
+                  extra={results.percAprov > 0 ? `${results.percAprov.toFixed(2).replace(".", ",")}%` : undefined}
+                />
 
                 <div className="flex items-center gap-2 border-b border-primary/20 pt-4 pb-2">
                   <span className="w-2 h-2 rounded-full bg-gold"></span>
@@ -3230,6 +3245,7 @@ function ResultField({
   success,
   large,
   className,
+  extra,
 }: {
   label: string;
   value: string;
@@ -3237,19 +3253,25 @@ function ResultField({
   success?: boolean;
   large?: boolean;
   className?: string;
+  extra?: React.ReactNode;
 }) {
   return (
     <div className={className}>
       <label className="block text-xs font-semibold text-primary mb-1">{label}</label>
       <div
-        className={`px-3 py-2.5 rounded-md border-l-4 text-sm font-bold
+        className={`px-3 py-2.5 rounded-md border-l-4 text-sm font-bold flex items-center justify-between gap-2
         ${highlight ? "bg-blue-50 border-l-gold text-primary" : ""}
         ${success ? "bg-green-50 border-l-success text-success" : ""}
         ${!highlight && !success ? "bg-muted border-l-gold/50 text-primary" : ""}
         ${large ? "text-lg" : ""}
       `}
       >
-        {value}
+        <span>{value}</span>
+        {extra && (
+          <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded shrink-0">
+            {extra}
+          </span>
+        )}
       </div>
     </div>
   );
