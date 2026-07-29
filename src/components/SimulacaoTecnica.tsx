@@ -1582,6 +1582,7 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
                       src={logoEmp}
                       alt="Logo Empreendimento"
                       className="w-24 h-24 object-contain rounded border border-border"
+                      onError={() => setLogoEmp(null)}
                     />
                     <button
                       onClick={() => setLogoEmp(null)}

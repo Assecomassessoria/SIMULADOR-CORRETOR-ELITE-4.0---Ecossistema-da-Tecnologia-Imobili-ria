@@ -1002,7 +1002,14 @@ function DropZone({
       </div>
       {image && (
         <div className="relative inline-block">
-          <img src={image} alt={label} className="w-20 h-20 object-cover rounded border border-border" />
+          <img
+            src={image}
+            alt={label}
+            className="w-20 h-20 object-cover rounded border border-border"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src = "/logo-elite.jpg";
+            }}
+          />
           <button
             onClick={(e) => {
               e.stopPropagation();

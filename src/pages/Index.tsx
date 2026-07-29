@@ -219,10 +219,25 @@ const Index = () => {
         }`}
       >
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
-          {adminData.imgEmp && (
-            <img src={adminData.imgEmp} alt="Empreendimento" className="w-10 h-10 object-cover rounded flex-shrink-0" />
+          {adminData.imgEmp ? (
+            <img
+              src={adminData.imgEmp}
+              alt="Empreendimento"
+              className="w-10 h-10 object-cover rounded flex-shrink-0"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = "/logo-elite.jpg";
+              }}
+            />
+          ) : (
+            <img
+              src="/logo-elite.jpg"
+              alt="Elite"
+              className="w-10 h-10 object-cover rounded flex-shrink-0"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = "/pwa-icon-192.png";
+              }}
+            />
           )}
-          {isFull && <img src="/pwa-icon-192.png" alt="Elite" className="w-8 h-8 flex-shrink-0 rounded" />}
           <div className="min-w-0 flex-1">
             <h1
               className={`text-sm sm:text-base font-bold tracking-wider uppercase leading-tight truncate ${isFull ? "text-gold" : "text-primary"}`}
@@ -248,6 +263,9 @@ const Index = () => {
               src={adminData.imgBroker}
               alt="Corretor"
               className="w-10 h-10 object-cover rounded-full flex-shrink-0 border-2 border-gold/30"
+              onError={(e) => {
+                (e.currentTarget as HTMLElement).style.display = "none";
+              }}
             />
           )}
           <button

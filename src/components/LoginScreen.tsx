@@ -1543,6 +1543,9 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
               src={logoElite}
               alt="Simulador Corretor de Elite 4.0"
               className="w-20 h-20 sm:w-32 sm:h-32 mx-auto mb-2 sm:mb-4 drop-shadow-lg rounded-2xl"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = "/pwa-icon-192.png";
+              }}
             />
             <h1 className="text-base sm:text-xl font-bold tracking-wider uppercase leading-tight">
               {isFull ? (
