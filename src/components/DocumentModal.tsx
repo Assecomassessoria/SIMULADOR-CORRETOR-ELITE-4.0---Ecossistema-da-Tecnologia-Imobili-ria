@@ -544,13 +544,13 @@ export default function DocumentModal({ type, fields, adminData, onClose }: Docu
                 <div>
                   <label className="block text-[9px] font-bold text-slate-600 uppercase">Total Estimado Pós-Obras</label>
                   <div className="font-bold text-slate-800 py-1 border-b border-amber-300">
-                    R$ {(parseCurrency(valorVenda) * (parseFloat(percMaxPosObras) / 100)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    R$ {(Math.max(0, parseCurrency(valorVenda) - parseCurrency(fields.campanha || "0")) * (parseFloat(percMaxPosObras) / 100)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                   </div>
                 </div>
                 <div>
                   <label className="block text-[9px] font-bold text-slate-600 uppercase">Prestação Estimada Pós-Obras</label>
                   <div className="font-bold text-amber-700 py-1 border-b border-amber-300">
-                    R$ {(parseInt(planoMesesPosObras) > 0 ? (parseCurrency(valorVenda) * (parseFloat(percMaxPosObras) / 100)) / parseInt(planoMesesPosObras) : 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} /mês
+                    R$ {(parseInt(planoMesesPosObras) > 0 ? (Math.max(0, parseCurrency(valorVenda) - parseCurrency(fields.campanha || "0")) * (parseFloat(percMaxPosObras) / 100)) / parseInt(planoMesesPosObras) : 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} /mês
                   </div>
                 </div>
               </div>

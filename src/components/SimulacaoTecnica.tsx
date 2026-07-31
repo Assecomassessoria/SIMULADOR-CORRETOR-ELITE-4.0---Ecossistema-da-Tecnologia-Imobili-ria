@@ -235,7 +235,7 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
 
     const sub = fluxoObras - interm - chv;
     const percMaxPosObras = parseFloat(updated.percMaxPosObras) || 0;
-    const totalPosObras = lanc * (percMaxPosObras / 100);
+    const totalPosObras = Math.max(0, lanc - camp) * (percMaxPosObras / 100);
     const planoMesesPosObras = parseInt(updated.planoMesesPosObras) || 0;
     const prestacaoEstimadaPosObras = planoMesesPosObras > 0 ? totalPosObras / planoMesesPosObras : 0;
 
@@ -323,7 +323,7 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
       const sub = fluxoObras - interm - chv;
       
       const percMaxPosObras = parseFloat(fields.percMaxPosObras) || 0;
-      const totalPosObras = lanc * (percMaxPosObras / 100);
+      const totalPosObras = Math.max(0, lanc - camp) * (percMaxPosObras / 100);
       const saldoObras = sub - totalPosObras;
       
       if (saldoObras > 0) {
@@ -522,7 +522,7 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
       results.valorObras ? `Valor Parcelas Obras: ${formatCurrency(results.valorObras)}` : "",
       `\n🔑 *SALDO FINANCIAMENTO PÓS-ENTREGA (PÓS-OBRAS)*`,
       `━━━━━━━━━━━━━━━━━━━━━`,
-      `Percentual Máximo (%): ${fields.percMaxPosObras || "0.00"}%`,
+      `Percentual Máximo (%): ${fields.percMaxPosObras || "0.00"}% (Base: ${formatCurrency(Math.max(0, (parseCurrency(fields.lancamento) || 0) - (parseCurrency(fields.campanha) || 0)))})`,
       `Total Pós-Obras: ${formatCurrency(results.totalPosObras || 0)}`,
       `Plano (meses): ${fields.planoMesesPosObras || "0"}`,
       `Prestação Estimada: ${formatCurrency(results.prestacaoEstimadaPosObras || 0)}/mês`,
@@ -672,7 +672,7 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
               <div class="field">
                 <label>Percentual Máximo (%)</label>
                 <span>${fields.percMaxPosObras || "0"}%</span>
-                <span style="font-size:9px;color:#555;display:block;">Do Lançamento (${formatCurrency(parseCurrency(fields.lancamento) || 0)})</span>
+                <span style="font-size:9px;color:#555;display:block;">Do Lançamento (${formatCurrency(Math.max(0, (parseCurrency(fields.lancamento) || 0) - (parseCurrency(fields.campanha) || 0)))})</span>
               </div>
               <div class="field"><label>Total Pós-Obras</label><span class="highlight">${formatCurrency(results.totalPosObras)}</span></div>
               <div class="field"><label>Plano (meses)</label><span>${fields.planoMesesPosObras || "0"} meses</span></div>
@@ -795,7 +795,7 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
 
   <h2>4. Saldo Financiamento Pós-Entrega/Plano (Pós-Obras)</h2>
   <table>
-    <tr><th>Percentual Máximo (%)</th><td>${fields.percMaxPosObras || "0"}%<br/><small style="font-size:9px;color:#555;">Do Lançamento: ${formatCurrency(parseCurrency(fields.lancamento) || 0)}</small></td><th>Total Pós-Obras</th><td class="highlight">${formatCurrency(results.totalPosObras)}</td></tr>
+    <tr><th>Percentual Máximo (%)</th><td>${fields.percMaxPosObras || "0"}%<br/><small style="font-size:9px;color:#555;">Do Lançamento: ${formatCurrency(Math.max(0, (parseCurrency(fields.lancamento) || 0) - (parseCurrency(fields.campanha) || 0)))}</small></td><th>Total Pós-Obras</th><td class="highlight">${formatCurrency(results.totalPosObras)}</td></tr>
     <tr><th>Plano (meses)</th><td>${fields.planoMesesPosObras || "0"} meses</td><th>Prestação Estimada</th><td class="highlight">${formatCurrency(results.prestacaoEstimadaPosObras)}/mês</td></tr>
   </table>
 
@@ -2062,7 +2062,7 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
                               ))}
                             </div>
                             <span className="text-[8px] text-muted-foreground block mt-1 leading-tight">
-                              Do Lançamento ({formatCurrency(lancVal)})
+                              Do Lançamento ({formatCurrency(Math.max(0, lancVal - (parseCurrency(fields.campanha) || 0)))})
                             </span>
                           </div>
 
