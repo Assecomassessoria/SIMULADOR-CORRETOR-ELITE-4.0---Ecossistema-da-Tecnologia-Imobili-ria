@@ -75,6 +75,19 @@ export default function DocumentModal({ type, fields, adminData, onClose }: Docu
   const [dataSorocabaDia, setDataSorocabaDia] = useState("");
   const [dataSorocabaMes, setDataSorocabaMes] = useState("");
 
+  // Declaração de Endereço Specifics
+  const [donoComprovante, setDonoComprovante] = useState("");
+  const [donoNacionalidade, setDonoNacionalidade] = useState("Brasileiro(a)");
+  const [donoEstadoCivil, setDonoEstadoCivil] = useState("Solteiro(a)");
+  const [donoProfissao, setDonoProfissao] = useState("");
+  const [donoCpf, setDonoCpf] = useState("");
+  const [donoRg, setDonoRg] = useState("");
+  const [enderecoResidencia, setEnderecoResidencia] = useState("");
+  const [proponenteNacionalidade, setProponenteNacionalidade] = useState("Brasileiro(a)");
+  const [proponenteEstadoCivil, setProponenteEstadoCivil] = useState("Solteiro(a)");
+  const [grauParentescoCondicao, setGrauParentescoCondicao] = useState("");
+  const [cidadeUfDecl, setCidadeUfDecl] = useState("São Paulo - SP");
+
   // Auto-calculated dates
   const [dataTexto, setDataTexto] = useState("");
   const [hojeISO, setHojeISO] = useState("");
@@ -91,7 +104,22 @@ export default function DocumentModal({ type, fields, adminData, onClose }: Docu
     setHojeISO(hoje.toISOString().split("T")[0]);
     setDataSorocabaDia(diaStr);
     setDataSorocabaMes(mesNome);
-  }, []);
+
+    const addrParts = [
+      fields.endereco || "",
+      fields.numero ? `nº ${fields.numero}` : "",
+      fields.complemento || "",
+      fields.bairro || "",
+      fields.cidade && fields.uf ? `${fields.cidade} - ${fields.uf}` : (fields.cidade || fields.uf || ""),
+      fields.cep ? `CEP ${fields.cep}` : ""
+    ].filter(Boolean);
+    if (addrParts.length > 0) {
+      setEnderecoResidencia(addrParts.join(", "));
+    }
+    if (fields.cidade || fields.uf) {
+      setCidadeUfDecl(`${fields.cidade || "São Paulo"} - ${fields.uf || "SP"}`);
+    }
+  }, [fields]);
 
   const handlePrint = () => {
     window.print();
@@ -107,6 +135,8 @@ export default function DocumentModal({ type, fields, adminData, onClose }: Docu
       text = `Olá ${cliente}, segue a Carta de Cancelamento SICAQ preenchida e pronta para assinatura.`;
     } else if (type === "renda_informal") {
       text = `Olá ${cliente}, segue a Declaração de Renda Informal preenchida e pronta para assinatura.`;
+    } else if (type === "declaracao_endereco") {
+      text = `Olá ${cliente}, segue a Declaração de Residência preenchida e pronta para assinatura.`;
     }
     const phone = adminData?.whatsapp?.replace(/\D/g, "") || "";
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, "_blank");
@@ -125,6 +155,7 @@ export default function DocumentModal({ type, fields, adminData, onClose }: Docu
             {type === "parentesco" && "Declaração de Parentesco e Ausência de Rendimentos"}
             {type === "cancelamento" && "Carta de Cancelamento SICAQ"}
             {type === "renda_informal" && "Declaração de Renda Informal"}
+            {type === "declaracao_endereco" && "Declaração de Residência / Endereço"}
           </h3>
         </div>
         <div className="flex items-center gap-2">
@@ -877,6 +908,176 @@ export default function DocumentModal({ type, fields, adminData, onClose }: Docu
                 >
                   https://simuladorcorretorelite.com.br
                 </a>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================== 7. DECLARAÇÃO DE ENDEREÇO / RESIDÊNCIA ==================== */}
+        {type === "declaracao_endereco" && (
+          <div className="space-y-8 font-serif text-slate-900 leading-relaxed md:px-8 py-4">
+            <div className="text-center font-bold text-base md:text-lg uppercase tracking-wider text-black mb-8 border-b border-black pb-2">
+              Declaração de Residência
+            </div>
+
+            <div className="text-justify space-y-6 text-sm leading-loose text-slate-900">
+              <p>
+                Eu,{" "}
+                <input
+                  type="text"
+                  value={donoComprovante}
+                  onChange={(e) => setDonoComprovante(e.target.value)}
+                  placeholder="[Nome do Dono do Comprovante]"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 outline-none focus:border-blue-900 w-[260px]"
+                />
+                ,{" "}
+                <input
+                  type="text"
+                  value={donoNacionalidade}
+                  onChange={(e) => setDonoNacionalidade(e.target.value)}
+                  placeholder="[Nacionalidade]"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 text-center outline-none focus:border-blue-900 w-[130px]"
+                />
+                ,{" "}
+                <input
+                  type="text"
+                  value={donoEstadoCivil}
+                  onChange={(e) => setDonoEstadoCivil(e.target.value)}
+                  placeholder="[Estado Civil]"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 text-center outline-none focus:border-blue-900 w-[120px]"
+                />
+                ,{" "}
+                <input
+                  type="text"
+                  value={donoProfissao}
+                  onChange={(e) => setDonoProfissao(e.target.value)}
+                  placeholder="[Profissão]"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 outline-none focus:border-blue-900 w-[180px]"
+                />
+                , inscrito(a) no CPF sob o nº{" "}
+                <input
+                  type="text"
+                  value={donoCpf}
+                  onChange={(e) => setDonoCpf(e.target.value)}
+                  placeholder="[CPF do Dono]"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 text-center outline-none focus:border-blue-900 w-[150px]"
+                />{" "}
+                e portador(a) do RG nº{" "}
+                <input
+                  type="text"
+                  value={donoRg}
+                  onChange={(e) => setDonoRg(e.target.value)}
+                  placeholder="[RG]"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 text-center outline-none focus:border-blue-900 w-[130px]"
+                />
+                , residente e domiciliado(a) na{" "}
+                <input
+                  type="text"
+                  value={enderecoResidencia}
+                  onChange={(e) => setEnderecoResidencia(e.target.value)}
+                  placeholder="[Rua/Avenida, nº, Complemento, Bairro, Cidade - UF, CEP]"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 outline-none focus:border-blue-900 w-full mt-1"
+                />
+                , declaro sob as penas da lei (Art. 2º da Lei nº 7.115/1983) que:
+              </p>
+
+              <p>
+                <input
+                  type="text"
+                  value={cliente}
+                  onChange={(e) => setCliente(e.target.value)}
+                  placeholder="[Nome do Proponente do Financiamento]"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 outline-none focus:border-blue-900 w-[280px]"
+                />
+                ,{" "}
+                <input
+                  type="text"
+                  value={proponenteNacionalidade}
+                  onChange={(e) => setProponenteNacionalidade(e.target.value)}
+                  placeholder="[Nacionalidade]"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 text-center outline-none focus:border-blue-900 w-[130px]"
+                />
+                ,{" "}
+                <input
+                  type="text"
+                  value={proponenteEstadoCivil}
+                  onChange={(e) => setProponenteEstadoCivil(e.target.value)}
+                  placeholder="[Estado Civil]"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 text-center outline-none focus:border-blue-900 w-[120px]"
+                />
+                ,{" "}
+                <input
+                  type="text"
+                  value={profissao}
+                  onChange={(e) => setProfissao(e.target.value)}
+                  placeholder="[Profissão]"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 outline-none focus:border-blue-900 w-[180px]"
+                />
+                , inscrito(a) no CPF sob o nº{" "}
+                <input
+                  type="text"
+                  value={cpf}
+                  onChange={(e) => setCpf(e.target.value)}
+                  placeholder="[Seu CPF]"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 text-center outline-none focus:border-blue-900 w-[150px]"
+                />{" "}
+                e portador(a) do RG nº{" "}
+                <input
+                  type="text"
+                  value={rg}
+                  onChange={(e) => setRg(e.target.value)}
+                  placeholder="[Seu RG]"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 text-center outline-none focus:border-blue-900 w-[130px]"
+                />
+                , reside no mesmo endereço acima indicado, sob a condição de{" "}
+                <input
+                  type="text"
+                  value={grauParentescoCondicao}
+                  onChange={(e) => setGrauParentescoCondicao(e.target.value)}
+                  placeholder="[inserir o grau de parentesco, ex: meu filho / meu cônjuge / meu inquilino]"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 outline-none focus:border-blue-900 w-[320px]"
+                />
+                .
+              </p>
+
+              <p>
+                Por ser a expressão da verdade, assumindo total responsabilidade civil e criminal pelas informações prestadas, firmo a presente.
+              </p>
+            </div>
+
+            <div className="pt-16 text-center space-y-8 font-serif">
+              <p className="text-sm">
+                <input
+                  type="text"
+                  value={cidadeUfDecl}
+                  onChange={(e) => setCidadeUfDecl(e.target.value)}
+                  placeholder="[Cidade - UF]"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 text-center outline-none focus:border-blue-900 w-[180px]"
+                />
+                ,{" "}
+                <input
+                  type="text"
+                  value={dataSorocabaDia}
+                  onChange={(e) => setDataSorocabaDia(e.target.value)}
+                  placeholder="[Dia]"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 text-center outline-none focus:border-blue-900 w-[40px]"
+                />{" "}
+                de{" "}
+                <input
+                  type="text"
+                  value={dataSorocabaMes}
+                  onChange={(e) => setDataSorocabaMes(e.target.value)}
+                  placeholder="[Mês]"
+                  className="border-b border-dashed border-slate-400 font-bold text-blue-900 px-1 py-0.5 text-center outline-none focus:border-blue-900 w-[120px]"
+                />{" "}
+                de 2026.
+              </p>
+
+              <div className="w-4/5 mx-auto border-t border-black pt-2 mt-12">
+                <p className="font-bold text-sm">Assinatura do Declarante</p>
+                {donoComprovante && (
+                  <p className="text-xs text-slate-500 font-sans mt-0.5">({donoComprovante})</p>
+                )}
               </div>
             </div>
           </div>

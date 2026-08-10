@@ -1211,6 +1211,14 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
     setActiveDocModal("renda_informal");
   };
 
+  const handleDeclaracaoEndereco = () => {
+    if (isVisitor) {
+      alert("Função disponível apenas para assinantes ativos.");
+      return;
+    }
+    setActiveDocModal("declaracao_endereco");
+  };
+
   const unusedDeclaracaoParentesco = () => {
     const proponente = "";
     const cpfProp = fields.infoCpf || "";
@@ -2323,6 +2331,15 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
                                 className="w-full text-left px-3 py-2 text-xs rounded hover:bg-accent hover:text-accent-foreground transition-colors"
                               >
                                 6 - Declaração de Renda Informal
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setDocMenuOpen(false);
+                                  handleDeclaracaoEndereco();
+                                }}
+                                className="w-full text-left px-3 py-2 text-xs rounded hover:bg-accent hover:text-accent-foreground transition-colors"
+                              >
+                                7 - Declaração de Endereço
                               </button>
                             </div>
                           )}
