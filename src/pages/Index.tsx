@@ -219,7 +219,16 @@ const Index = () => {
         }`}
       >
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
-          {adminData.imgEmp ? (
+          {activeTenant?.logoUrl ? (
+            <img
+              src={activeTenant.logoUrl}
+              alt={activeTenant.name}
+              className="w-10 h-10 object-cover rounded flex-shrink-0 bg-white"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = "/logo-elite.jpg";
+              }}
+            />
+          ) : adminData.imgEmp ? (
             <img
               src={adminData.imgEmp}
               alt="Empreendimento"

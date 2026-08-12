@@ -126,7 +126,9 @@
     <meta name="author" content="LOURENCO JUNIOR" />
     <link rel="canonical" href="https://www.simuladorhabitacional.simuladorcorretorelite.com.br/" />
 
-    <link rel="icon" type="image/x-icon" href="/app-icon.ico">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/pwa-icon-192.png" />
+    <link rel="icon" type="image/jpeg" href="/logo-elite.jpg" />
     <link rel="apple-touch-icon" href="/pwa-icon-192.png" />
 
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -161,45 +163,58 @@
       }
     </script>
 
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-YZD7TZGHXL"></script>
+    <!-- Non-blocking tracking scripts initialization -->
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
+      gtag('config', 'G-YZD7TZGHXL');
 
-    gtag('config', 'G-YZD7TZGHXL');
-    </script>
-
-    <!-- Meta Pixel Code -->
-    <script>
-      !function(f,b,e,v,n,t,s)
-      {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-      n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-      if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-      n.queue=[];t=b.createElement(e);t.async=!0;
-      t.src=v;s=b.getElementsByTagName(e)[0];
-      s.parentNode.insertBefore(t,s)}(window, document,'script',
-      'https://connect.facebook.net/en_US/fbevents.js');
-      fbq('init', '1442133797399012');
-      fbq('track', 'PageView');
-    </script>
-    <!-- End Meta Pixel Code -->
-
-    <!-- Facebook JavaScript SDK -->
-    <script>
       window.fbAsyncInit = function() {
-        FB.init({
-          appId            : '1442133797399012',
-          autoLogAppEvents : true,
-          xfbml            : true,
-          version          : 'v25.0'
-        });
+        if (window.FB) {
+          FB.init({
+            appId            : '1442133797399012',
+            autoLogAppEvents : true,
+            xfbml            : true,
+            version          : 'v25.0'
+          });
+        }
       };
+
+      // Load analytics lazily after load event to prevent browser loading tab spinner
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          try {
+            var g = document.createElement('script');
+            g.async = true;
+            g.src = 'https://www.googletagmanager.com/gtag/js?id=G-YZD7TZGHXL';
+            document.head.appendChild(g);
+
+            !function(f,b,e,v,n,t,s)
+            {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+            n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+            if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+            n.queue=[];t=b.createElement(e);t.async=!0;
+            t.src=v;s=b.getElementsByTagName(e)[0];
+            s.parentNode.insertBefore(t,s)}(window, document,'script',
+            'https://connect.facebook.net/en_US/fbevents.js');
+            if (window.fbq) {
+              fbq('init', '1442133797399012');
+              fbq('track', 'PageView');
+            }
+
+            var fb = document.createElement('script');
+            fb.async = true;
+            fb.defer = true;
+            fb.crossOrigin = 'anonymous';
+            fb.src = 'https://connect.facebook.net/en_US/sdk.js';
+            document.head.appendChild(fb);
+          } catch(err) {
+            console.warn('Analytics async load notice:', err);
+          }
+        }, 1200);
+      });
     </script>
-    <script async defer crossorigin="anonymous"
-      src="https://connect.facebook.net/en_US/sdk.js"></script>
-    <!-- End Facebook JavaScript SDK -->
 
     
     

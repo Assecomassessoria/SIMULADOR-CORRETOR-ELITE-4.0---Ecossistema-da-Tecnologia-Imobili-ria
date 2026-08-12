@@ -1203,7 +1203,14 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
       <div className="fixed inset-0 z-50 flex flex-col items-center justify-center elite-gradient">
         <div className="flex flex-col items-center gap-6 px-6 w-full max-w-sm">
           <div className="text-center">
-            <img src={logoElite} alt="Elite" className="w-24 h-24 mx-auto mb-3 drop-shadow-lg rounded-2xl" />
+            <img
+              src={logoElite}
+              alt="Elite"
+              className="w-24 h-24 mx-auto mb-3 drop-shadow-lg rounded-2xl"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = "/pwa-icon-192.png";
+              }}
+            />
             <h1 className="text-lg font-bold text-gold uppercase">Senha Gravada ✅</h1>
             <p className="text-gold-bright text-sm mt-1">A senha de liberação foi salva com sucesso!</p>
           </div>
@@ -1278,7 +1285,14 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
       <div className="fixed inset-0 z-50 flex flex-col items-center justify-center elite-gradient">
         <div className="flex flex-col items-center gap-6 px-6 w-full max-w-sm">
           <div className="text-center">
-            <img src={logoElite} alt="Elite" className="w-24 h-24 mx-auto mb-3 drop-shadow-lg rounded-2xl" />
+            <img
+              src={logoElite}
+              alt="Elite"
+              className="w-24 h-24 mx-auto mb-3 drop-shadow-lg rounded-2xl"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = "/pwa-icon-192.png";
+              }}
+            />
             <h1 className="text-lg font-bold text-gold uppercase">Sistema Liberado</h1>
             <p className="text-gold-bright text-sm mt-1">Acesso total confirmado!</p>
           </div>
@@ -1310,7 +1324,14 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
       <div className="fixed inset-0 z-50 flex flex-col items-center justify-center elite-gradient">
         <div className="flex flex-col items-center gap-6 px-6 w-full max-w-sm">
           <div className="text-center">
-            <img src={logoElite} alt="Elite" className="w-24 h-24 mx-auto mb-3 drop-shadow-lg rounded-2xl" />
+            <img
+              src={logoElite}
+              alt="Elite"
+              className="w-24 h-24 mx-auto mb-3 drop-shadow-lg rounded-2xl"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = "/pwa-icon-192.png";
+              }}
+            />
             <h1 className="text-lg font-bold text-gold uppercase">Acesso ELITE Liberado</h1>
           </div>
           <div className="w-full bg-primary/30 border border-gold/30 rounded-lg p-5 text-center space-y-3">
@@ -1385,7 +1406,14 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
       <div className="fixed inset-0 z-50 flex items-center justify-center elite-gradient overflow-y-auto">
         <div className="bg-card rounded-xl border-2 border-gold/50 p-6 w-full max-w-xs text-center space-y-4 my-8">
           <div className="text-center">
-            <img src={logoElite} alt="Elite" className="w-20 h-20 mx-auto mb-2 drop-shadow-lg rounded-2xl" />
+            <img
+              src={logoElite}
+              alt="Elite"
+              className="w-20 h-20 mx-auto mb-2 drop-shadow-lg rounded-2xl"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = "/pwa-icon-192.png";
+              }}
+            />
             <h3 className="text-primary font-bold uppercase text-sm">Cadastro de Acesso</h3>
             <p className="text-muted-foreground text-xs mt-1">
               Cadastre seu email e crie sua senha de 6 dígitos para finalizar a ativação.
@@ -1453,7 +1481,14 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
             <X className="w-5 h-5" />
           </button>
           <div className="text-center">
-            <img src={logoElite} alt="Elite" className="w-20 h-20 mx-auto mb-2 drop-shadow-lg rounded-2xl" />
+            <img
+              src={logoElite}
+              alt="Elite"
+              className="w-20 h-20 mx-auto mb-2 drop-shadow-lg rounded-2xl"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = "/pwa-icon-192.png";
+              }}
+            />
             <h3 className="text-primary font-bold uppercase text-sm">
               {pendingAccessLevel === "pin_corretor" ? "Informe seu Email" : "Cadastro de Email"}
             </h3>
