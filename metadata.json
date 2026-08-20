@@ -1,5 +1,6 @@
 {
   "name": "Simulador Corretor Elite",
   "description": "Ferramenta de simulação completa para corretores de imóveis, incluindo cálculos de comissões, financiamentos e propostas.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -34,15 +34,28 @@ const MarketingSettings = () => {
     const loadProfile = async () => {
       const isMaster = isMasterAccess() || sessionStorage.getItem("luiza_elite_auth") === "true";
       if (isMaster) {
-        setUser({ id: "master_user_id", email: "lourencoljritu@gmail.com" });
-        setProfile({
-          meta_access_token: null,
-          ig_user_id: null,
-          meta_ad_account_id: null,
-          meta_connected_at: null,
-        });
-        setLoginEmail("lourencoljritu@gmail.com");
-        setInstagramHandle("elite_marketing_master");
+        setUser({ id: "master_user_id", email: "simuladorcorretorelite4.0@gmail.com" });
+        const storedEmail = localStorage.getItem("meta_login_email") || "simuladorcorretorelite4.0@gmail.com";
+        const storedIg = localStorage.getItem("meta_ig_handle") || "simuladorcorretorelite4.0";
+        setLoginEmail(storedEmail);
+        setInstagramHandle(storedIg);
+
+        const { data } = await supabase
+          .from("profiles" as any)
+          .select("meta_access_token, ig_user_id, meta_ad_account_id, meta_connected_at")
+          .limit(1)
+          .maybeSingle();
+
+        if (data && (data as any).ig_user_id) {
+          setProfile(data as any);
+        } else {
+          setProfile({
+            meta_access_token: "simulated_preview_token",
+            ig_user_id: "17841400000000000",
+            meta_ad_account_id: "act_1020304050",
+            meta_connected_at: new Date().toISOString(),
+          });
+        }
         setLoading(false);
         return;
       }
@@ -58,9 +71,11 @@ const MarketingSettings = () => {
         .from("profiles" as any)
         .select("meta_access_token, ig_user_id, meta_ad_account_id, meta_connected_at")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
-      setProfile(data as any);
+      if (data) {
+        setProfile(data as any);
+      }
       setLoginEmail(localStorage.getItem("meta_login_email") || user.email || "");
       setInstagramHandle(localStorage.getItem("meta_ig_handle") || "");
       setLoading(false);

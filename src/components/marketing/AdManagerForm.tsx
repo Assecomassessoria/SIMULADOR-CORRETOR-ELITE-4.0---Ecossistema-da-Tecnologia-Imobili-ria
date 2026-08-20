@@ -204,9 +204,11 @@ const AdManagerForm = () => {
     const checkAuth = async () => {
       const isMaster = isMasterAccess() || sessionStorage.getItem("luiza_elite_auth") === "true";
       if (isMaster) {
-        setUser({ id: "master_user_id", email: "lourencoljritu@gmail.com" } as any);
-        setMetaConnected(false);
-        setImageUsage({ count: 0, lastReset: new Date().toISOString() });
+        setUser({ id: "master_user_id", email: "simuladorcorretorelite4.0@gmail.com" } as any);
+        const storedIg = localStorage.getItem("meta_ig_handle");
+        setMetaConnected(!!storedIg || true);
+        setImageUsage(0);
+        setProfileSuggestion("Fotos profissionais do imóvel com foco em diferenciais, iluminação natural e ambientes amplos");
         setAuthLoading(false);
         return;
       }
@@ -225,7 +227,7 @@ const AdManagerForm = () => {
         .from("profiles" as any)
         .select("meta_access_token, ig_user_id, email")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
       const p = profile as any;
       setMetaConnected(!!(p?.meta_access_token && p?.ig_user_id));
