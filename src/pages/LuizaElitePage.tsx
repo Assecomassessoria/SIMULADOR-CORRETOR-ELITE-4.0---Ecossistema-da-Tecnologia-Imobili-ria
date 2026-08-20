@@ -15,6 +15,9 @@ import { setLoginDate } from "@/lib/eliteUtils";
 import MermaidBlock from "@/components/MermaidBlock";
 import luizaAvatar from "@/assets/luiza-elite-avatar.png";
 
+const LUIZA_PHOTO_URL = "https://pub-a3cfd193eb6748ec96b423de3caf804f.r2.dev/2%20-%20Luiza%20IA%20-%20Assistente%20Simulado.png";
+const DEFAULT_AVATAR = luizaAvatar || LUIZA_PHOTO_URL;
+
 interface Message {
   id: string;
   role: "user" | "model";
@@ -58,8 +61,6 @@ const QUICK_CHIPS = [
   { label: "Script de Fechamento", icon: <TrendingUp size={14} /> },
   { label: "Resumo para WhatsApp", icon: <MessageSquare size={14} /> },
 ];
-
-const DEFAULT_AVATAR = luizaAvatar;
 
 export default function LuizaElitePage() {
   const navigate = useNavigate();
@@ -398,8 +399,8 @@ export default function LuizaElitePage() {
 
           {/* Avatar */}
           <div className="px-4 py-5 border-b border-gold/10 flex flex-col items-center">
-            <div className="w-20 h-20 rounded-full border-2 border-gold p-0.5 shadow-xl overflow-hidden">
-              <img src={DEFAULT_AVATAR} alt="Luiza Elite" className="w-full h-full object-cover rounded-full" />
+            <div className="w-20 h-20 rounded-full border-2 border-gold p-0.5 shadow-xl overflow-hidden bg-primary/20">
+              <img src={DEFAULT_AVATAR} alt="Luiza Elite" referrerPolicy="no-referrer" className="w-full h-full object-cover object-top rounded-full" />
             </div>
             <h3 className="font-bold text-xs text-gold mt-2">Luiza Elite</h3>
             <p className="text-[9px] text-gold/60 uppercase tracking-[2px]">Assistente de Alta Performance</p>
@@ -604,7 +605,7 @@ export default function LuizaElitePage() {
                   m.role === "user" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-gold"
                 }`}>
                   {m.role === "user" ? <User size={18} /> : (
-                    <img src={DEFAULT_AVATAR} alt="Luiza" className="w-full h-full object-cover" />
+                    <img src={DEFAULT_AVATAR} alt="Luiza" referrerPolicy="no-referrer" className="w-full h-full object-cover object-top" />
                   )}
                 </div>
                 <div className={`p-4 rounded-2xl shadow-sm leading-relaxed ${
@@ -635,7 +636,7 @@ export default function LuizaElitePage() {
           {isLoading && (
             <div className="flex gap-3 max-w-3xl">
               <div className="w-9 h-9 rounded-full border-2 border-gold overflow-hidden bg-card flex-shrink-0">
-                <img src={DEFAULT_AVATAR} alt="Luiza" className="w-full h-full object-cover" />
+                <img src={DEFAULT_AVATAR} alt="Luiza" referrerPolicy="no-referrer" className="w-full h-full object-cover object-top" />
               </div>
               <div className="p-4 rounded-2xl bg-card border border-border rounded-tl-none">
                 <div className="flex gap-1.5">
