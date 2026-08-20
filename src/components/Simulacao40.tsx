@@ -29,41 +29,31 @@ interface ResultadoData {
 
 function calcularTaxa(
   renda: number,
-  f1 = 4.25,
+  f1 = 4.00,
   f2 = 4.75,
   f3 = 7.66,
   f4 = 10.0,
   sbpe = 11.19,
 ): { t: number; f: string } {
-  if (renda <= 3200) return { t: f1, f: "Faixa 1" };
+  if (renda <= 3200) {
+    const ratio = Math.max(0, Math.min(1, renda / 3200));
+    const tx = f1 + ratio * (5.25 - f1);
+    return { t: Number(tx.toFixed(2)), f: "Faixa 1" };
+  }
   if (renda <= 5000) {
-    const d = [
-      { r: 3200.01, t: 4.5 },
-      { r: 3400, t: f2 },
-      { r: 3600, t: 5.0 },
-      { r: 3900, t: 5.25 },
-      { r: 4200, t: 5.5 },
-      { r: 4300, t: 5.75 },
-      { r: 4500, t: 6.0 },
-      { r: 4600, t: 6.5 },
-      { r: 4700, t: 7.0 },
-      { r: 4800, t: 7.25 },
-      { r: 4900, t: 7.5 },
-      { r: 5000, t: f3 },
-    ];
-    let tx = f1;
-    d.forEach((i) => {
-      if (renda >= i.r) tx = i.t;
-    });
-    return { t: tx, f: "Faixa 2" };
+    const ratio = Math.max(0, Math.min(1, (renda - 3200) / (5000 - 3200)));
+    const tx = f2 + ratio * (7.00 - f2);
+    return { t: Number(tx.toFixed(2)), f: "Faixa 2" };
   }
   if (renda <= 9600) {
-    const saltos = Math.floor((renda - 5000.01) / 780);
-    return { t: Math.min(8.16, f3 + saltos * 0.1), f: "Faixa 3" };
+    const ratio = Math.max(0, Math.min(1, (renda - 5000) / (9600 - 5000)));
+    const tx = f3 + ratio * (8.16 - f3);
+    return { t: Number(tx.toFixed(2)), f: "Faixa 3" };
   }
   if (renda <= 13000.0) {
-    const saltos = Math.floor((renda - 9600.01) / 680);
-    return { t: Math.min(10.5, f4 + saltos * 0.1), f: "Faixa 4" };
+    const ratio = Math.max(0, Math.min(1, (renda - 9600) / (13000 - 9600)));
+    const tx = f4 + ratio * (10.50 - f4);
+    return { t: Number(tx.toFixed(2)), f: "Faixa 4" };
   }
   return { t: sbpe, f: "SBPE" };
 }
@@ -81,7 +71,7 @@ export default function Simulacao40() {
   const [admSenha, setAdmSenha] = useState("");
   const [admLogado, setAdmLogado] = useState(false);
   const [admLoading, setAdmLoading] = useState(false);
-  const [admF1, setAdmF1] = useState(4.25);
+  const [admF1, setAdmF1] = useState(4.00);
   const [admF2, setAdmF2] = useState(4.75);
   const [admF3, setAdmF3] = useState(7.66);
   const [admF4, setAdmF4] = useState(10.0);

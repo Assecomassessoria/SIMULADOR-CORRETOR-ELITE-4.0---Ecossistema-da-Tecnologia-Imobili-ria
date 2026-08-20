@@ -630,7 +630,7 @@ export const DEFAULT_MCMV_RULES: McmvRule[] = [
     rendaMin: 0,
     rendaMax: 3200,
     taxaMin: 4.00,
-    taxaMax: 4.50,
+    taxaMax: 5.25,
     limiteImovelMin: 0,
     limiteImovelMax: 275000,
     subsidioMax: 55000,
@@ -640,9 +640,9 @@ export const DEFAULT_MCMV_RULES: McmvRule[] = [
     rendaMin: 3200.01,
     rendaMax: 5000,
     taxaMin: 4.75,
-    taxaMax: 6.50,
-    limiteImovelMin: 275000,
-    limiteImovelMax: 400000,
+    taxaMax: 7.00,
+    limiteImovelMin: 0,
+    limiteImovelMax: 275000,
     subsidioMax: 55000,
   },
   {
@@ -650,7 +650,7 @@ export const DEFAULT_MCMV_RULES: McmvRule[] = [
     rendaMin: 5000.01,
     rendaMax: 9600,
     taxaMin: 7.66,
-    taxaMax: 7.66,
+    taxaMax: 8.16,
     limiteImovelMin: 0,
     limiteImovelMax: 400000,
     subsidioMax: 0,
@@ -671,10 +671,31 @@ export function getMcmvRules(): McmvRule[] {
   const stored = localStorage.getItem('mcmv_rules');
   if (stored) {
     try {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length >= 4) {
+        const f1 = parsed.find((r: any) => r.faixa === "Faixa 1");
+        const f2 = parsed.find((r: any) => r.faixa === "Faixa 2");
+        const f3 = parsed.find((r: any) => r.faixa === "Faixa 3");
+        const f4 = parsed.find((r: any) => r.faixa?.includes("Faixa 4"));
+        // Se as regras armazenadas forem da versão antiga (ex: f1.taxaMax < 5.25 ou f2.taxaMax < 7 ou f1.rendaMax !== 3200), atualiza para o padrão oficial
+        if (
+          f1 && f1.rendaMax === 3200 && f1.taxaMax === 5.25 &&
+          f2 && f2.rendaMax === 5000 && f2.taxaMax === 7.00 && f2.limiteImovelMax === 275000 &&
+          f3 && f3.rendaMax === 9600 && f3.taxaMax === 8.16 &&
+          f4 && f4.rendaMax === 13000 && f4.taxaMax === 10.50
+        ) {
+          return parsed;
+        }
+      }
     } catch (e) {
       console.error("Error parsing stored mcmv rules", e);
     }
+  }
+  // Salva e retorna as regras oficiais atualizadas
+  try {
+    localStorage.setItem('mcmv_rules', JSON.stringify(DEFAULT_MCMV_RULES));
+  } catch (e) {
+    // ignore
   }
   return DEFAULT_MCMV_RULES;
 }
