@@ -45,7 +45,8 @@
               });
             }
             setTimeout(function() {
-              window.location.reload();
+              // window.location.reload(); -> COMENTE ESTA LINHA
+              console.error("Reload automático pausado. Aguardando falha nativa.");
             }, 400);
           } else {
             console.error('Chunk reload already attempted once. Stopping reload loop.');
@@ -128,7 +129,6 @@
 
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="icon" type="image/png" sizes="192x192" href="/pwa-icon-192.png" />
-    <link rel="icon" type="image/jpeg" href="/logo-elite.jpg" />
     <link rel="apple-touch-icon" href="/pwa-icon-192.png" />
 
     <meta name="apple-mobile-web-app-capable" content="yes" />
