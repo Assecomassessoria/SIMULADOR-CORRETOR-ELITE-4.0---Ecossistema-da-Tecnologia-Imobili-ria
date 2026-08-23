@@ -145,33 +145,37 @@ export default function Simulacao40() {
     if (!dep) subsidio *= 0.7;
     subsidio = Math.max(0, subsidio);
 
-    // 2. TAXA E ENCARGOS (Calibrados para o Seguro Real da Caixa)
-    const i = Math.pow(1 + rateResult.taxaNominal, 1 / 12) - 1;
+    // 2. TAXA E ENCARGOS (Calibrados Caixa)
+    const taxaAnualNominal = rateResult.taxaNominal;
+    const taxaMensal = taxaAnualNominal / 12;
+    const encargos = 69.95; // Taxa de administração + Seguros MIP/DFI médios
 
-    // O seguro da Caixa não é fixo. 0.00022 é o que faz os 230k gerarem a parcela de 960
-    const taxaAdmCaixa = 25.0;
-    const seguroMIP_DFI = imovel * 0.00022;
-    const encargos = taxaAdmCaixa + seguroMIP_DFI;
+    // 3. CAPACIDADE DE PAGAMENTO (30% da renda bruta máxima permitida)
+    const parcelaMaxima = renda * 0.30;
+    const parcelaPura = Math.max(0, parcelaMaxima - encargos);
 
-    // 3. CAPACIDADE DE PAGAMENTO (A parcela de 30% manda no valor)
-    const pDispTotal = renda * 0.3;
-    const pDispPura = pDispTotal - encargos;
-
-    let vMaxRenda;
+    let vFinanCalculado = 0;
     if (vSist === "PRICE") {
-      vMaxRenda = pDispPura * ((Math.pow(1 + i, n) - 1) / (i * Math.pow(1 + i, n)));
+      vFinanCalculado = parcelaPura * ((1 - Math.pow(1 + taxaMensal, -n)) / taxaMensal);
     } else {
-      // SAC: vMax = Parcela_Pura / (1/n + i)
-      vMaxRenda = pDispPura / (1 / n + i);
+      // SAC: PV = ParcelaPura / (TaxaMensal + (1 / n))
+      vFinanCalculado = parcelaPura / (taxaMensal + (1 / n));
     }
 
-    // 4. APLICAÇÃO DE COTA E TRAVA
-    const cotaMaxima = renda > 12000 && vSist === "PRICE" ? 0.7 : 0.8;
-    let vFinan = Math.min(imovel * cotaMaxima, vMaxRenda);
+    // 4. APLICAÇÃO DE COTA (Máximo 80% do Imóvel)
+    const cotaMaxima = 0.80;
+    const limiteCota = imovel * cotaMaxima;
+    const vFinan = Math.max(0, Math.min(limiteCota, vFinanCalculado));
 
     // 5. RESULTADOS FINAIS
-    const cotaFinan = (vFinan / imovel) * 100;
-    const pPura = vSist === "PRICE" ? (vFinan * i) / (1 - Math.pow(1 + i, -n)) : vFinan / n + vFinan * i;
+    const cotaFinan = imovel > 0 ? (vFinan / imovel) * 100 : 0;
+    
+    let prestacao = 0;
+    if (vSist === "PRICE") {
+      prestacao = vFinan > 0 ? (vFinan * (taxaMensal / (1 - Math.pow(1 + taxaMensal, -n)))) + encargos : 0;
+    } else {
+      prestacao = vFinan > 0 ? (vFinan / n) + (vFinan * taxaMensal) + encargos : 0;
+    }
 
     setResultado({
       faixa: rateResult.faixa,

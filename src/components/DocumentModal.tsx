@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { X, Printer, Send } from "lucide-react";
 
 interface DocumentModalProps {
@@ -10,6 +10,7 @@ interface DocumentModalProps {
 }
 
 export default function DocumentModal({ type, fields, adminData, onClose }: DocumentModalProps) {
+  const printSheetRef = useRef<HTMLDivElement>(null);
   // Common states initialized from fields
   const [cliente, setCliente] = useState(fields.infoCli || "");
   const [cpf, setCpf] = useState(fields.infoCpf || "");
@@ -122,6 +123,173 @@ export default function DocumentModal({ type, fields, adminData, onClose }: Docu
   }, [fields]);
 
   const handlePrint = () => {
+    const sheetEl = printSheetRef.current;
+    if (!sheetEl) {
+      window.print();
+      return;
+    }
+
+    // 1. Clone node to preserve all values as static text
+    const clone = sheetEl.cloneNode(true) as HTMLElement;
+
+    // Remove inline style tags inside clone that could interfere
+    const inlineStyles = clone.querySelectorAll("style");
+    inlineStyles.forEach((s) => s.remove());
+
+    // 2. Map all inputs/selects/textareas inside original to clone
+    const origInputs = sheetEl.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>("input, select, textarea");
+    const cloneInputs = clone.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>("input, select, textarea");
+
+    origInputs.forEach((orig, index) => {
+      const target = cloneInputs[index];
+      if (!target) return;
+
+      if (orig instanceof HTMLInputElement && orig.type === "checkbox") {
+        const span = document.createElement("span");
+        span.className = "inline-block font-mono text-xs font-bold mr-1";
+        span.innerHTML = orig.checked ? "<strong>[X]</strong>" : "[&nbsp;&nbsp;]";
+        target.parentNode?.replaceChild(span, target);
+      } else if (orig instanceof HTMLInputElement && orig.type === "radio") {
+        const span = document.createElement("span");
+        span.className = "inline-block font-mono text-xs font-bold mr-1";
+        span.innerHTML = orig.checked ? "<strong>(●)</strong>" : "(&nbsp;)&nbsp;";
+        target.parentNode?.replaceChild(span, target);
+      } else if (orig instanceof HTMLSelectElement) {
+        const selectedText = orig.options[orig.selectedIndex]?.text || orig.value || "";
+        const span = document.createElement("span");
+        span.className = "inline-block font-semibold text-slate-900 border-b border-slate-400 px-1 py-0.5 min-w-[80px]";
+        span.textContent = selectedText;
+        target.parentNode?.replaceChild(span, target);
+      } else {
+        const val = orig.value || "";
+        const span = document.createElement("span");
+        span.className = "inline-block font-semibold text-slate-900 border-b border-slate-400 px-1 py-0.5 min-w-[40px] " + (orig.className || "");
+        span.style.cssText = orig.style.cssText;
+        span.textContent = val || "\u00A0";
+        target.parentNode?.replaceChild(span, target);
+      }
+    });
+
+    // Remove no-print elements
+    clone.querySelectorAll(".print\\:hidden, .no-print").forEach((el) => el.remove());
+
+    const titleMap: Record<string, string> = {
+      mo: `Ficha MO - Autorização de Pesquisa - ${cliente || "CAIXA"}`,
+      cadastral: `Ficha Cadastral Habitacional - ${cliente || "CAIXA"}`,
+      editavel: `Ficha Cadastral - ${cliente || "CAIXA"}`,
+      parentesco: `Declaração de Parentesco - ${cliente || "CAIXA"}`,
+      cancelamento: `Carta de Cancelamento SICAQ - ${cliente || "CAIXA"}`,
+      renda_informal: `Declaração de Renda Informal - ${cliente || "CAIXA"}`,
+      declaracao_endereco: `Declaração de Residência - ${cliente || "CAIXA"}`
+    };
+    const docTitle = titleMap[type] || "Documento CAIXA";
+
+    // Grab all current document stylesheets
+    const headStyles = Array.from(document.querySelectorAll("style, link[rel='stylesheet']"))
+      .map((el) => el.outerHTML)
+      .join("\n");
+
+    const htmlContent = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>${docTitle}</title>
+  ${headStyles}
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 8mm 10mm;
+    }
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    body {
+      background: #ffffff !important;
+      color: #0f172a !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      font-size: 11px;
+      line-height: 1.35;
+    }
+    .print-sheet {
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0 auto !important;
+      padding: 10px !important;
+      background: #ffffff !important;
+      box-shadow: none !important;
+      border: none !important;
+    }
+    table {
+      border-collapse: collapse !important;
+      width: 100% !important;
+    }
+    th, td {
+      border-color: #0f172a !important;
+    }
+    .no-print, .print\\:hidden {
+      display: none !important;
+    }
+    .signatures-container, .grid, .footer-page, table, .space-y-6 > div {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+  </style>
+</head>
+<body>
+  <div class="print-sheet">
+    ${clone.innerHTML}
+  </div>
+</body>
+</html>`;
+
+    // Try multiple strategies to guarantee printing works across browsers and embedded previews:
+    try {
+      let iframe = document.getElementById("caixa-print-iframe") as HTMLIFrameElement | null;
+      if (iframe) {
+        iframe.remove();
+      }
+      iframe = document.createElement("iframe");
+      iframe.id = "caixa-print-iframe";
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "200px";
+      iframe.style.height = "200px";
+      iframe.style.border = "0";
+      iframe.style.opacity = "0.01";
+      iframe.style.pointerEvents = "none";
+      iframe.style.zIndex = "-1";
+      document.body.appendChild(iframe);
+
+      const iframeDoc = iframe.contentWindow?.document || iframe.contentDocument;
+      if (iframeDoc) {
+        iframeDoc.open();
+        iframeDoc.write(htmlContent);
+        iframeDoc.close();
+
+        setTimeout(() => {
+          try {
+            if (iframe?.contentWindow) {
+              iframe.contentWindow.focus();
+              iframe.contentWindow.print();
+            } else {
+              window.print();
+            }
+          } catch {
+            window.print();
+          }
+        }, 300);
+        return;
+      }
+    } catch {
+      // Fallback
+    }
+
+    // Direct fallback
     window.print();
   };
 
@@ -161,7 +329,8 @@ export default function DocumentModal({ type, fields, adminData, onClose }: Docu
         <div className="flex items-center gap-2">
           <button
             onClick={handlePrint}
-            className="flex items-center gap-2 px-3 py-2 bg-amber-500 text-slate-950 font-bold rounded-lg hover:bg-amber-400 transition-all text-xs cursor-pointer"
+            className="flex items-center gap-2 px-3 py-2 bg-amber-500 text-slate-950 font-bold rounded-lg hover:bg-amber-400 transition-all text-xs cursor-pointer shadow-md active:scale-95"
+            title="Imprimir ou Salvar como PDF"
           >
             <Printer size={14} /> Imprimir / PDF
           </button>
@@ -173,7 +342,7 @@ export default function DocumentModal({ type, fields, adminData, onClose }: Docu
           </button>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
+            className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all cursor-pointer"
           >
             <X size={18} />
           </button>
@@ -181,59 +350,25 @@ export default function DocumentModal({ type, fields, adminData, onClose }: Docu
       </div>
 
       {/* Sheet canvas container */}
-      <div className="flex-1 max-w-4xl w-full mx-auto bg-white border-x border-b border-slate-200 text-slate-900 rounded-b-xl shadow-2xl p-6 md:p-12 overflow-y-auto print:border-none print:shadow-none print:p-0">
+      <div ref={printSheetRef} className="flex-1 max-w-4xl w-full mx-auto bg-white border-x border-b border-slate-200 text-slate-900 rounded-b-xl shadow-2xl p-6 md:p-12 overflow-y-auto print:border-none print:shadow-none print:p-0">
         
         {/* Style block dedicated to printable page styles when rendering inside browser */}
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
-            body * {
-              visibility: hidden !important;
-            }
-            #print-modal-container, #print-modal-container * {
-              visibility: visible !important;
-            }
-            #print-modal-container {
-              position: absolute !important;
-              left: 0 !important;
-              top: 0 !important;
-              width: 100% !important;
-              height: auto !important;
-              overflow: visible !important;
-              display: block !important;
-              background: white !important;
-              color: black !important;
-              padding: 0 !important;
-              margin: 0 !important;
-            }
-            #print-modal-container .print\\:hidden,
-            #print-modal-container .print\\:hidden * {
-              display: none !important;
-              visibility: hidden !important;
-            }
             body { 
               background: white !important; 
               color: black !important; 
             }
-            input, select, textarea { 
-              border: none !important; 
-              background: transparent !important; 
-              padding: 0 !important; 
-              color: black !important; 
-              -webkit-appearance: none; 
-              -moz-appearance: none; 
-              appearance: none; 
-            }
-            input::placeholder { 
-              color: transparent !important; 
-            }
-            /* Style for document card during print */
-            #print-modal-container .max-w-4xl {
-              max-width: 100% !important;
-              width: 100% !important;
-              box-shadow: none !important;
-              border: none !important;
+            #print-modal-container {
+              position: static !important;
+              background: white !important;
               padding: 0 !important;
               margin: 0 !important;
+              overflow: visible !important;
+              display: block !important;
+            }
+            #print-modal-container .print\\:hidden {
+              display: none !important;
             }
           }
         `}} />

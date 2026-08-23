@@ -725,3 +725,240 @@ export function getMcmvRateForRenda(renda: number, rules: McmvRule[]): { taxaNom
   return { taxaNominal: 0.115, faixa: "SBPE - Recursos SBPE", rule: null };
 }
 
+export interface CapacidadeCalculoResult {
+  sucesso: boolean;
+  erro?: string;
+  idade?: number;
+  prazoMeses?: number;
+  prazoAnos?: number;
+  valorImovel?: string;
+  modalidade?: string;
+  taxaJurosNominal?: string;
+  taxaJurosEfetiva?: string;
+  sistemaAmortizacao?: string;
+
+  // Limite da Cota Máxima (80%)
+  limiteCota80?: number;
+  cotaMaximaPercentual?: number;
+
+  // Compromisso Renda Máxima (30%)
+  parcelaComprometimentoMaximo?: string;
+
+  // SAC ISOLADO
+  capacidadeSAC?: number;
+  valorFinanciadoSAC?: string;
+  valorEntradaSAC?: string;
+  cotaFinanciamentoSAC?: string;
+  primeiraParcelaSAC?: string;
+  ultimaParcelaSAC?: string;
+  amortizacaoMensalSAC?: string;
+  totalJurosSAC?: string;
+  totalPagoSAC?: string;
+
+  // PRICE ISOLADA
+  capacidadePRICE?: number;
+  valorFinanciadoPRICE?: string;
+  valorEntradaPRICE?: string;
+  cotaFinanciamentoPRICE?: string;
+  parcelaUnicaPRICE?: string;
+  totalPagoPRICE?: string;
+
+  // Diferenças comparativas
+  diferencaFinanciamento?: string;
+  diferencaEntrada?: string;
+  diferencaTotalPago?: string;
+
+  // Compatibilidade com propriedades legadas
+  parcelaMaxima?: string;
+  parcelaPrice?: string;
+  valorFinanciado?: string;
+  valorEntrada?: string;
+  cotaFinanciamento?: string;
+  ultimaParcelaSac?: string;
+  totalPagoSac?: string;
+  totalPagoPrice?: string;
+}
+
+/**
+ * Motor de Cálculo Oficial Habitacional
+ * Calcula a capacidade de financiamento de forma ISOLADA e INDEPENDENTE para SAC e PRICE
+ * respeitando os dois limites técnicos:
+ * 1. Limite de Cota Máxima (80% do valor do imóvel)
+ * 2. Limite de Comprometimento de Renda (30% da renda bruta familiar)
+ */
+export function calcularCapacidadeFinanciamento(
+  renda: number,
+  dataNascimento: string,
+  valorImovel: number
+): CapacidadeCalculoResult {
+  if (!dataNascimento) {
+    return { sucesso: false, erro: "Por favor, informe a Data de Nascimento." };
+  }
+
+  const hoje = new Date();
+  const cleanDate = dataNascimento.trim();
+  let nascimento: Date | null = null;
+
+  // Tratar formatos DD/MM/AAAA ou YYYY-MM-DD
+  const parts = cleanDate.split(/[-/]/);
+  if (parts.length === 3) {
+    if (parts[0].length === 4) {
+      nascimento = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    } else if (parts[2].length === 4) {
+      nascimento = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+    }
+  }
+  if (!nascimento || isNaN(nascimento.getTime())) {
+    nascimento = new Date(cleanDate);
+  }
+
+  if (isNaN(nascimento.getTime())) {
+    return { sucesso: false, erro: "Data de nascimento inválida." };
+  }
+
+  // Calcula idade atual
+  let idade = hoje.getFullYear() - nascimento.getFullYear();
+  const m = hoje.getMonth() - nascimento.getMonth();
+  if (m < 0 || (m === 0 && hoje.getDate() < nascimento.getDate())) {
+    idade--;
+  }
+
+  // Regra dos 80 anos (Idade + Prazo <= 80)
+  let prazoAnos = 80 - idade;
+  if (prazoAnos > 35) prazoAnos = 35; // Teto máximo do mercado imobiliário
+  if (prazoAnos <= 0) return { sucesso: false, erro: "Idade limite excedida para financiamento." };
+
+  const prazoMeses = prazoAnos * 12;
+
+  // 1. DEFINIR OS DOIS LIMITES (COTA VS RENDA)
+  const cotaMaximaPercentual = 80;
+  const limiteCota80 = valorImovel * 0.80; // R$ 192.000,00 para imóvel de R$ 240.000,00
+  const parcelaMaxima = renda * 0.30; // R$ 1.140,00 para renda de R$ 3.800,00
+
+  // Taxas Minha Casa Minha Vida vs SBPE
+  const rules = getMcmvRules();
+  const rateResult = getMcmvRateForRenda(renda, rules);
+  let taxaAnualNominal = rateResult.taxaNominal;
+  let taxaAnualEfetiva = Math.pow(1 + taxaAnualNominal / 12, 12) - 1;
+  let modalidade = "";
+
+  if (rateResult.faixa === "Faixa 1") {
+    modalidade = "Minha Casa Minha Vida - Faixa 1 (FGTS)";
+  } else if (rateResult.faixa === "Faixa 2") {
+    modalidade = "Minha Casa Minha Vida - FGTS (Empreendimento Financiado pela Caixa)";
+  } else if (rateResult.faixa === "Faixa 3") {
+    modalidade = "Minha Casa Minha Vida - Faixa 3 (FGTS)";
+  } else if (rateResult.faixa.includes("Faixa 4")) {
+    modalidade = "Minha Casa Minha Vida - Faixa 4 (Classe Média)";
+  } else {
+    modalidade = "SBPE - Recursos SBPE";
+    taxaAnualNominal = 0.105;
+    taxaAnualEfetiva = 0.11;
+  }
+
+  const taxaMensal = taxaAnualNominal / 12;
+  const custoSeguroMIP_DFI = 69.95; // Custo de seguro MIP/DFI e taxa de administração média inicial Caixa
+
+  if (parcelaMaxima <= custoSeguroMIP_DFI) {
+    return { sucesso: false, erro: "Renda insuficiente para cobrir seguros e encargos básicos." };
+  }
+
+  const parcelaPura = parcelaMaxima - custoSeguroMIP_DFI;
+
+  // 2. CALCULAR O FINANCIAMENTO MÁXIMO ISOLADO PARA SAC
+  // Fórmula invertida do SAC: PV = (ParcelaMaxima - TaxasSeguro) / (TaxaJuros + (1/Prazo))
+  const divisorSAC = (1 / prazoMeses) + taxaMensal;
+  const capacidadeSAC = divisorSAC > 0 ? parcelaPura / divisorSAC : 0;
+  const valorFinanciadoSACNum = Math.max(0, Math.min(capacidadeSAC, limiteCota80));
+  const valorEntradaSACNum = Math.max(0, valorImovel - valorFinanciadoSACNum);
+  const cotaSACNum = valorImovel > 0 ? (valorFinanciadoSACNum / valorImovel) * 100 : 0;
+
+  // Prestação Real Mês 1 (SAC)
+  const prestacaoSACMes1Num =
+    valorFinanciadoSACNum > 0
+      ? (valorFinanciadoSACNum / prazoMeses) + (valorFinanciadoSACNum * taxaMensal) + custoSeguroMIP_DFI
+      : 0;
+
+  const amortizacaoMensalSACNum = valorFinanciadoSACNum / prazoMeses;
+  const ultimaParcelaSACNum =
+    valorFinanciadoSACNum > 0
+      ? amortizacaoMensalSACNum + (amortizacaoMensalSACNum * taxaMensal) + custoSeguroMIP_DFI
+      : 0;
+
+  const totalJurosSACNum = ((prazoMeses + 1) * valorFinanciadoSACNum * taxaMensal) / 2;
+  const totalSeguroSACNum = custoSeguroMIP_DFI * prazoMeses;
+  const totalPagoSACNum = valorFinanciadoSACNum + totalJurosSACNum + totalSeguroSACNum;
+
+  // 3. CALCULAR O FINANCIAMENTO MÁXIMO ISOLADO PARA PRICE
+  // Fórmula invertida da PRICE (Valor Presente): PV = (ParcelaMaxima - TaxasSeguro) * [ (1 - (1+i)^-n) / i ]
+  const fatorPriceInverso =
+    taxaMensal > 0 ? (1 - Math.pow(1 + taxaMensal, -prazoMeses)) / taxaMensal : prazoMeses;
+  const capacidadePRICENum = parcelaPura * fatorPriceInverso;
+  const valorFinanciadoPRICENum = Math.max(0, Math.min(capacidadePRICENum, limiteCota80));
+  const valorEntradaPRICENum = Math.max(0, valorImovel - valorFinanciadoPRICENum);
+  const cotaPRICENum = valorImovel > 0 ? (valorFinanciadoPRICENum / valorImovel) * 100 : 0;
+
+  // Parcela Real Única (PRICE)
+  const parcelaUnicaPRICENum =
+    valorFinanciadoPRICENum > 0
+      ? valorFinanciadoPRICENum * (taxaMensal / (1 - Math.pow(1 + taxaMensal, -prazoMeses))) +
+        custoSeguroMIP_DFI
+      : 0;
+
+  const totalPagoPRICENum = parcelaUnicaPRICENum * prazoMeses;
+
+  // Diferenças comparativas
+  const diferencaFinanciamentoNum = Math.max(0, valorFinanciadoPRICENum - valorFinanciadoSACNum);
+  const diferencaEntradaNum = Math.max(0, valorEntradaSACNum - valorEntradaPRICENum);
+  const diferencaTotalPagoNum = Math.max(0, totalPagoPRICENum - totalPagoSACNum);
+
+  return {
+    sucesso: true,
+    idade,
+    prazoMeses,
+    prazoAnos,
+    valorImovel: valorImovel.toFixed(2),
+    limiteCota80,
+    cotaMaximaPercentual,
+    parcelaComprometimentoMaximo: parcelaMaxima.toFixed(2),
+    modalidade,
+    taxaJurosNominal: `${(taxaAnualNominal * 100).toFixed(2)}% a.a.`,
+    taxaJurosEfetiva: `${(taxaAnualEfetiva * 100).toFixed(2)}% a.a.`,
+    sistemaAmortizacao: "SAC / TR - Constante e PRICE / TR - Tabela Price",
+
+    // SAC
+    capacidadeSAC,
+    valorFinanciadoSAC: valorFinanciadoSACNum.toFixed(2),
+    valorEntradaSAC: valorEntradaSACNum.toFixed(2),
+    cotaFinanciamentoSAC: `${cotaSACNum.toFixed(2)}%`,
+    primeiraParcelaSAC: prestacaoSACMes1Num.toFixed(2),
+    ultimaParcelaSAC: ultimaParcelaSACNum.toFixed(2),
+    amortizacaoMensalSAC: amortizacaoMensalSACNum.toFixed(2),
+    totalJurosSAC: totalJurosSACNum.toFixed(2),
+    totalPagoSAC: totalPagoSACNum.toFixed(2),
+
+    // PRICE
+    capacidadePRICE: capacidadePRICENum,
+    valorFinanciadoPRICE: valorFinanciadoPRICENum.toFixed(2),
+    valorEntradaPRICE: valorEntradaPRICENum.toFixed(2),
+    cotaFinanciamentoPRICE: `${cotaPRICENum.toFixed(2)}%`,
+    parcelaUnicaPRICE: parcelaUnicaPRICENum.toFixed(2),
+    totalPagoPRICE: totalPagoPRICENum.toFixed(2),
+
+    // Diferenças
+    diferencaFinanciamento: diferencaFinanciamentoNum.toFixed(2),
+    diferencaEntrada: diferencaEntradaNum.toFixed(2),
+    diferencaTotalPago: diferencaTotalPagoNum.toFixed(2),
+
+    // Propriedades compatíveis com legado
+    parcelaMaxima: prestacaoSACMes1Num.toFixed(2),
+    parcelaPrice: parcelaUnicaPRICENum.toFixed(2),
+    valorFinanciado: valorFinanciadoSACNum.toFixed(2),
+    valorEntrada: valorEntradaSACNum.toFixed(2),
+    cotaFinanciamento: `${cotaSACNum.toFixed(2)}%`,
+    ultimaParcelaSac: ultimaParcelaSACNum.toFixed(2),
+    totalPagoSac: totalPagoSACNum.toFixed(2),
+    totalPagoPrice: totalPagoPRICENum.toFixed(2),
+  };
+}
+

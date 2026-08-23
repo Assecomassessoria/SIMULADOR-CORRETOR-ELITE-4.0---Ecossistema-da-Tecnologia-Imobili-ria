@@ -11,7 +11,7 @@ import { AlertCircle, CheckCircle2, DollarSign, TrendingUp, MessageSquare, Print
 import { formatCurrency, calculateSimulation } from "@/lib/simulatorCalc";
 import PercentualAdjustmentPanel from "@/components/PercentualAdjustmentPanel";
 import { jsPDF } from "jspdf";
-import { getMcmvRules, getMcmvRateForRenda } from "@/lib/eliteUtils";
+import { getMcmvRules, getMcmvRateForRenda, calcularCapacidadeFinanciamento, CapacidadeCalculoResult } from "@/lib/eliteUtils";
 
 const formatIntegerToBr = (value: string): string => {
   const digits = value.replace(/\D/g, "");
@@ -250,155 +250,18 @@ export default function SimulacaoCustom() {
   const [rapidaValorImovel, setRapidaValorImovel] = useState("240.000,00");
   const [rapidaRenda, setRapidaRenda] = useState("3.800,00");
   const [rapidaDataNascimento, setRapidaDataNascimento] = useState("2002-06-09");
-  const [rapidaResultado, setRapidaResultado] = useState<{
-    sucesso: boolean;
-    idade?: number;
-    prazoMeses?: number;
-    prazoAnos?: number;
-    parcelaMaxima?: string;
-    parcelaPrice?: string;
-    valorFinanciado?: string;
-    valorImovel?: string;
-    valorEntrada?: string;
-    cotaFinanciamento?: string;
-    taxaJurosNominal?: string;
-    taxaJurosEfetiva?: string;
-    modalidade?: string;
-    sistemaAmortizacao?: string;
-    ultimaParcelaSac?: string;
-    totalPagoSac?: string;
-    totalPagoPrice?: string;
-    erro?: string;
-  } | null>(null);
+  const [rapidaResultado, setRapidaResultado] = useState<CapacidadeCalculoResult | null>(null);
 
   const [showPriceSacComp, setShowPriceSacComp] = useState(false);
 
-  const [simResultado, setSimResultado] = useState<{
-    sucesso: boolean;
-    idade: number;
-    prazoMeses: number;
-    prazoAnos: number;
-    parcelaMaxima: number;
-    valorFinanciado: number;
-  } | null>(null);
+  // Sistema de amortização escolhido para o Simulador Customizável
+  const [inSistemaAmortizacaoCustom, setInSistemaAmortizacaoCustom] = useState<"SAC" | "PRICE">("PRICE");
+
+  const [simResultado, setSimResultado] = useState<CapacidadeCalculoResult | null>(null);
 
   // 1. A FUNÇÃO DE CÁLCULO (Aproximação Comercial)
-  const calcularFinanciamentoAproximado = (renda: number, dataNascimento: string, valorImovel: number) => {
-    if (!dataNascimento) {
-      return { erro: "Por favor, informe a Data de Nascimento." };
-    }
-
-    const hoje = new Date();
-    const nascimento = new Date(dataNascimento);
-    if (isNaN(nascimento.getTime())) {
-      return { erro: "Data de nascimento inválida." };
-    }
-
-    // Calcula a idade atual
-    let idade = hoje.getFullYear() - nascimento.getFullYear();
-    const m = hoje.getMonth() - nascimento.getMonth();
-    if (m < 0 || (m === 0 && hoje.getDate() < nascimento.getDate())) {
-      idade--;
-    }
-
-    // Regra dos 80 anos (Idade + Prazo <= 80)
-    let prazoAnos = 80 - idade;
-    if (prazoAnos > 35) prazoAnos = 35; // Teto máximo do mercado imobiliário
-    if (prazoAnos <= 0) return { erro: "Idade limite excedida para financiamento." };
-
-    const prazoMeses = prazoAnos * 12;
-
-    // Parcela máxima permitida (30% da renda bruta)
-    const parcelaMaxima = renda * 0.3;
-
-    // Seleção de Taxas (Minha Casa Minha Vida vs SBPE)
-    const rules = getMcmvRules();
-    const rateResult = getMcmvRateForRenda(renda, rules);
-    
-    let taxaAnualNominal = rateResult.taxaNominal;
-    let taxaAnualEfetiva = Math.pow(1 + taxaAnualNominal / 12, 12) - 1;
-    let modalidade = "";
-
-    if (rateResult.faixa === "Faixa 1") {
-      modalidade = "Minha Casa Minha Vida - Faixa 1 (FGTS)";
-    } else if (rateResult.faixa === "Faixa 2") {
-      modalidade = "Minha Casa Minha Vida - FGTS (Empreendimento Financiado pela Caixa)";
-    } else if (rateResult.faixa === "Faixa 3") {
-      modalidade = "Minha Casa Minha Vida - Faixa 3 (FGTS)";
-    } else if (rateResult.faixa.includes("Faixa 4")) {
-      modalidade = "Minha Casa Minha Vida - Faixa 4 (Classe Média)";
-    } else {
-      modalidade = "SBPE - Recursos SBPE";
-      taxaAnualNominal = 0.105;
-      taxaAnualEfetiva = 0.11;
-    }
-
-    // Regime SAC (Sistema de Amortização Constante):
-    // Prestação Inicial = Amortização + Juros + Seguros.
-    const taxaMensal = taxaAnualNominal / 12;
-    const custoSeguroMIP_DFI = 69.95; // Seguro e encargos médios iniciais
-
-    if (parcelaMaxima <= custoSeguroMIP_DFI) {
-      return { erro: "Renda insuficiente para cobrir seguros e encargos básicos." };
-    }
-
-    // Financiamento Máximo suportado pelo comprometimento de renda (SAC)
-    const divisorSAC = 1 / prazoMeses + taxaMensal;
-    let valorFinanciadoCalculado = (parcelaMaxima - custoSeguroMIP_DFI) / divisorSAC;
-
-    // A cota máxima do financiamento é de 80% do valor do imóvel
-    const cotaMaxima = 0.8;
-    const limiteCotaFinanciamento = valorImovel * cotaMaxima;
-
-    if (valorFinanciadoCalculado > limiteCotaFinanciamento) {
-      valorFinanciadoCalculado = limiteCotaFinanciamento;
-    }
-
-    if (valorFinanciadoCalculado < 0) {
-      valorFinanciadoCalculado = 0;
-    }
-
-    // Entrada = Valor do Imóvel - Valor Financiado
-    const valorEntrada = valorImovel - valorFinanciadoCalculado;
-
-    // Prestação Real do Mês 1 (SAC)
-    const prestacaoRealMes1 =
-      valorFinanciadoCalculado / prazoMeses + valorFinanciadoCalculado * taxaMensal + custoSeguroMIP_DFI;
-
-    // Prestação da Tabela Price
-    const prestacaoPriceVal = valorFinanciadoCalculado > 0 
-      ? valorFinanciadoCalculado * (taxaMensal / (1 - Math.pow(1 + taxaMensal, -prazoMeses))) + custoSeguroMIP_DFI
-      : 0;
-
-    const amortizacaoMensal = valorFinanciadoCalculado / prazoMeses;
-    const ultimaParcelaSacVal = valorFinanciadoCalculado > 0 
-      ? amortizacaoMensal + (amortizacaoMensal * taxaMensal) + custoSeguroMIP_DFI
-      : 0;
-
-    const totalJurosSac = ((prazoMeses + 1) * valorFinanciadoCalculado * taxaMensal) / 2;
-    const totalSeguroSac = custoSeguroMIP_DFI * prazoMeses;
-    const totalPagoSacVal = valorFinanciadoCalculado + totalJurosSac + totalSeguroSac;
-    const totalPagoPriceVal = prestacaoPriceVal * prazoMeses;
-
-    return {
-      sucesso: true,
-      idade: idade,
-      prazoMeses: prazoMeses,
-      prazoAnos: prazoAnos,
-      parcelaMaxima: prestacaoRealMes1.toFixed(2),
-      parcelaPrice: prestacaoPriceVal.toFixed(2),
-      valorFinanciado: valorFinanciadoCalculado.toFixed(2),
-      valorImovel: valorImovel.toFixed(2),
-      valorEntrada: valorEntrada.toFixed(2),
-      cotaFinanciamento: `${cotaMaxima * 100}%`,
-      taxaJurosNominal: `${(taxaAnualNominal * 100).toFixed(2)}% a.a.`,
-      taxaJurosEfetiva: `${(taxaAnualEfetiva * 100).toFixed(2)}% a.a.`,
-      modalidade: modalidade,
-      sistemaAmortizacao: "SAC / TR - Constante e PRICE / TR - Tabela Price",
-      ultimaParcelaSac: ultimaParcelaSacVal.toFixed(2),
-      totalPagoSac: totalPagoSacVal.toFixed(2),
-      totalPagoPrice: totalPagoPriceVal.toFixed(2),
-    };
+  const calcularFinanciamentoAproximado = (renda: number, dataNascimento: string, valorImovel: number): CapacidadeCalculoResult => {
+    return calcularCapacidadeFinanciamento(renda, dataNascimento, valorImovel);
   };
 
   // 2. FUNÇÃO ACIONADA EXCLUSIVAMENTE PELO BOTÃO "SIMULAÇÃO 4.0" (OU DISPARAR CLIQUE DO BOTÃO)
@@ -413,29 +276,11 @@ export default function SimulacaoCustom() {
       return;
     }
 
-    const resultado = calcularFinanciamentoAproximado(rendaDigitada, dataDigitada, valorImovelDigitado);
+    const resultado = calcularCapacidadeFinanciamento(rendaDigitada, dataDigitada, valorImovelDigitado);
 
     if (resultado.sucesso) {
-      setRapidaResultado({
-        sucesso: true,
-        idade: resultado.idade,
-        prazoMeses: resultado.prazoMeses,
-        prazoAnos: resultado.prazoAnos,
-        parcelaMaxima: resultado.parcelaMaxima,
-        parcelaPrice: resultado.parcelaPrice,
-        valorFinanciado: resultado.valorFinanciado,
-        valorImovel: resultado.valorImovel,
-        valorEntrada: resultado.valorEntrada,
-        cotaFinanciamento: resultado.cotaFinanciamento,
-        taxaJurosNominal: resultado.taxaJurosNominal,
-        taxaJurosEfetiva: resultado.taxaJurosEfetiva,
-        modalidade: resultado.modalidade,
-        sistemaAmortizacao: resultado.sistemaAmortizacao,
-        ultimaParcelaSac: resultado.ultimaParcelaSac,
-        totalPagoSac: resultado.totalPagoSac,
-        totalPagoPrice: resultado.totalPagoPrice,
-      });
-      toast.success("Simulação de aproximação comercial Caixa efetuada!");
+      setRapidaResultado(resultado);
+      toast.success("Simulação de aproximação comercial Caixa efetuada com sucesso!");
     } else {
       toast.error(resultado.erro || "Erro inesperado.");
       setRapidaResultado({
@@ -582,22 +427,14 @@ export default function SimulacaoCustom() {
     const day = String(nascimento.getDate()).padStart(2, "0");
     const formattedDate = `${year}-${month}-${day}`;
 
-    const res = calcularFinanciamentoAproximado(renda, formattedDate, vImovel);
+    const res = calcularCapacidadeFinanciamento(renda, formattedDate, vImovel);
 
     if (!res.sucesso || res.erro) {
       toast.error(res.erro || "Não foi possível calcular a simulação.");
       return;
     }
 
-    setSimResultado({
-      sucesso: true,
-      idade: res.idade!,
-      prazoMeses: res.prazoMeses!,
-      prazoAnos: res.prazoAnos!,
-      parcelaMaxima: parseFloat(res.parcelaMaxima!),
-      valorFinanciado: parseFloat(res.valorFinanciado!),
-    });
-
+    setSimResultado(res);
     toast.success("Resultados calculados! Veja abaixo.");
   };
 
@@ -634,23 +471,9 @@ export default function SimulacaoCustom() {
   };
 
   useEffect(() => {
-    const res = calcularFinanciamentoAproximado(3800, "2002-06-09", 240000);
+    const res = calcularCapacidadeFinanciamento(3800, "2002-06-09", 240000);
     if (res.sucesso) {
-      setRapidaResultado({
-        sucesso: true,
-        idade: res.idade,
-        prazoMeses: res.prazoMeses,
-        prazoAnos: res.prazoAnos,
-        parcelaMaxima: res.parcelaMaxima,
-        valorFinanciado: res.valorFinanciado,
-        valorImovel: res.valorImovel,
-        valorEntrada: res.valorEntrada,
-        cotaFinanciamento: res.cotaFinanciamento,
-        taxaJurosNominal: res.taxaJurosNominal,
-        taxaJurosEfetiva: res.taxaJurosEfetiva,
-        modalidade: res.modalidade,
-        sistemaAmortizacao: res.sistemaAmortizacao,
-      });
+      setRapidaResultado(res);
     }
   }, []);
 
@@ -718,9 +541,17 @@ export default function SimulacaoCustom() {
   const valorFGTSCustom = parseBrFloat(inFGTS);
   const atoVistaCustom = parseBrFloat(inAtoVista);
 
-  const resCaixaCustom = calcularFinanciamentoAproximado(rendaCustom, inDataNascimento, valorImovelCustom);
-  const financiamentoCaixa = resCaixaCustom.sucesso ? parseFloat(resCaixaCustom.valorFinanciado || "0") : 0;
-  const primeiraParcelaCaixa = resCaixaCustom.sucesso ? parseFloat(resCaixaCustom.parcelaMaxima || "0") : 0;
+  const resCaixaCustom = calcularCapacidadeFinanciamento(rendaCustom, inDataNascimento, valorImovelCustom);
+  const financiamentoCaixa = resCaixaCustom.sucesso
+    ? inSistemaAmortizacaoCustom === "PRICE"
+      ? parseFloat(resCaixaCustom.valorFinanciadoPRICE || "0")
+      : parseFloat(resCaixaCustom.valorFinanciadoSAC || "0")
+    : 0;
+  const primeiraParcelaCaixa = resCaixaCustom.sucesso
+    ? inSistemaAmortizacaoCustom === "PRICE"
+      ? parseFloat(resCaixaCustom.parcelaUnicaPRICE || "0")
+      : parseFloat(resCaixaCustom.primeiraParcelaSAC || "0")
+    : 0;
 
   // Soma total das intermediárias dinâmicas digitadas
   let totalIntermediarias = 0;
@@ -1303,35 +1134,73 @@ export default function SimulacaoCustom() {
                         >
                           {`R$ ${parseFloat(rapidaResultado.valorImovel || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                         </div>
-                        <span className="text-[10px] text-slate-400 mt-1">Valor total de negociação da unidade</span>
+                        <span className="text-[10px] text-slate-400 mt-1">Cota Máxima Permitida: 80% (R$ {((parseFloat(rapidaResultado.valorImovel || "0")) * 0.8).toLocaleString("pt-BR", { minimumFractionDigits: 2 })})</span>
                       </div>
 
                       {/* Card 2: Valor do Financiamento */}
-                      <div className="bg-[#161b22] border border-[#30363d] p-5 rounded-lg flex flex-col justify-center border-l-4 border-green-500/50">
-                        <span className="text-[11px] font-bold text-green-400 uppercase tracking-wider mb-1">
-                          Valor do Financiamento (Caixa)
-                        </span>
-                        <div
-                          id="resultadoFinanciamento"
-                          className="text-2xl text-green-400 font-black font-mono tracking-tight"
-                        >
-                          {`R$ ${parseFloat(rapidaResultado.valorFinanciado || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                      <div className="bg-[#161b22] border border-[#30363d] p-5 rounded-lg flex flex-col justify-between border-l-4 border-green-500/70">
+                        <div>
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-[11px] font-bold text-green-400 uppercase tracking-wider">
+                              Financiamento Caixa
+                            </span>
+                            <span className="text-[9px] bg-green-950 text-green-300 px-1.5 py-0.5 rounded font-bold uppercase">
+                              Poder de Compra
+                            </span>
+                          </div>
+                          <div className="space-y-1.5">
+                            <div className="flex justify-between items-baseline">
+                              <span className="text-[11px] text-amber-400 font-bold uppercase">Tabela PRICE:</span>
+                              <span id="resultadoFinanciamentoPRICE" className="text-lg text-amber-300 font-black font-mono">
+                                R$ {parseFloat(rapidaResultado.valorFinanciadoPRICE || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-baseline">
+                              <span className="text-[11px] text-teal-400 font-bold uppercase">Tabela SAC:</span>
+                              <span id="resultadoFinanciamentoSAC" className="text-lg text-teal-300 font-black font-mono">
+                                R$ {parseFloat(rapidaResultado.valorFinanciadoSAC || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                        <span className="text-[10px] text-slate-400 mt-1">Capacidade real estimada via regime SAC</span>
+                        {parseFloat(rapidaResultado.diferencaFinanciamento || "0") > 0 && (
+                          <div className="text-[10px] text-amber-300 font-semibold mt-2 pt-2 border-t border-[#30363d]/60 flex items-center gap-1">
+                            <span>⚡</span> + R$ {parseFloat(rapidaResultado.diferencaFinanciamento || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2 })} de capacidade na PRICE
+                          </div>
+                        )}
                       </div>
 
                       {/* Card 3: Valor de Entrada */}
-                      <div className="bg-[#161b22] border border-[#30363d] p-5 rounded-lg flex flex-col justify-center border-l-4 border-amber-500/50">
-                        <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider mb-1">
-                          Valor de Entrada Necessária
-                        </span>
-                        <div
-                          id="resultadoEntrada"
-                          className="text-2xl text-amber-400 font-black font-mono tracking-tight"
-                        >
-                          {`R$ ${parseFloat(rapidaResultado.valorEntrada || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                      <div className="bg-[#161b22] border border-[#30363d] p-5 rounded-lg flex flex-col justify-between border-l-4 border-amber-500/70">
+                        <div>
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider">
+                              Entrada Necessária
+                            </span>
+                            <span className="text-[9px] bg-amber-950 text-amber-300 px-1.5 py-0.5 rounded font-bold uppercase">
+                              Recursos Próprios
+                            </span>
+                          </div>
+                          <div className="space-y-1.5">
+                            <div className="flex justify-between items-baseline">
+                              <span className="text-[11px] text-amber-400 font-bold uppercase">Na PRICE:</span>
+                              <span id="resultadoEntradaPRICE" className="text-lg text-amber-300 font-black font-mono">
+                                R$ {parseFloat(rapidaResultado.valorEntradaPRICE || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-baseline">
+                              <span className="text-[11px] text-teal-400 font-bold uppercase">No SAC:</span>
+                              <span id="resultadoEntradaSAC" className="text-lg text-teal-300 font-black font-mono">
+                                R$ {parseFloat(rapidaResultado.valorEntradaSAC || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                        <span className="text-[10px] text-slate-400 mt-1">Necessidade de Recursos Próprios / FGTS</span>
+                        {parseFloat(rapidaResultado.diferencaEntrada || "0") > 0 && (
+                          <div className="text-[10px] text-green-400 font-semibold mt-2 pt-2 border-t border-[#30363d]/60 flex items-center gap-1">
+                            <span>📉</span> Entrada reduzida em R$ {parseFloat(rapidaResultado.diferencaEntrada || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2 })} na PRICE
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -1347,8 +1216,9 @@ export default function SimulacaoCustom() {
                               Amort. Constante
                             </span>
                           </div>
-                          <div className="text-lg text-teal-400 font-black font-mono tracking-tight">
-                            {`R$ ${parseFloat(rapidaResultado.parcelaMaxima || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                          <div className="text-lg text-teal-400 font-black font-mono tracking-tight flex justify-between items-baseline">
+                            <span>R$ {parseFloat(rapidaResultado.primeiraParcelaSAC || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            <span className="text-[10px] text-teal-300 font-normal">Última: R$ {parseFloat(rapidaResultado.ultimaParcelaSAC || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                           </div>
                         </div>
 
@@ -1361,13 +1231,14 @@ export default function SimulacaoCustom() {
                               Tabela Price
                             </span>
                           </div>
-                          <div className="text-lg text-amber-400 font-black font-mono tracking-tight">
-                            {`R$ ${parseFloat(rapidaResultado.parcelaPrice || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                          <div className="text-lg text-amber-400 font-black font-mono tracking-tight flex justify-between items-baseline">
+                            <span>R$ {parseFloat(rapidaResultado.parcelaUnicaPRICE || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            <span className="text-[10px] text-amber-300 font-normal">Parcela Fixa</span>
                           </div>
                         </div>
 
                         <span className="text-[10px] text-slate-400 border-t border-[#30363d]/50 pt-1.5 block">
-                          Compromete no máx. 30% da renda informada
+                          Teto de Comprometimento (30%): R$ {parseFloat(rapidaResultado.parcelaComprometimentoMaximo || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                         </span>
                       </div>
 
@@ -1404,9 +1275,9 @@ export default function SimulacaoCustom() {
                           </div>
                         </div>
                         <div className="pt-1">
-                          <strong className="text-slate-400 uppercase text-[9px] block">Cota Máxima:</strong>
+                          <strong className="text-slate-400 uppercase text-[9px] block">Cota Máxima Caixa:</strong>
                           <span className="font-semibold text-white">
-                            {rapidaResultado.cotaFinanciamento} (Máximo Permitido)
+                            80,00% do Valor da Unidade
                           </span>
                         </div>
                       </div>
@@ -1417,14 +1288,14 @@ export default function SimulacaoCustom() {
                       <button
                         type="button"
                         onClick={() => setShowPriceSacComp(!showPriceSacComp)}
-                        className="w-full flex items-center justify-between p-4 bg-[#1f242c] hover:bg-[#282e38] transition-colors focus:outline-none"
+                        className="w-full flex items-center justify-between p-4 bg-[#1f242c] hover:bg-[#282e38] transition-colors focus:outline-none cursor-pointer"
                       >
                         <div className="flex items-center gap-2.5">
                           <span className="text-sm font-black text-amber-400 tracking-wider">PRICE-TR</span>
                           <span className="text-[#30363d] text-xs font-bold">|</span>
                           <span className="text-sm font-black text-teal-400 tracking-wider">SAC-TR</span>
                           <span className="ml-2 text-[10px] bg-blue-950/80 text-blue-300 px-2 py-0.5 rounded-full font-bold uppercase border border-blue-800/40">
-                            Detalhamento Comparativo (Abre/Fecha)
+                            Detalhamento Comparativo Independente (Abre/Fecha)
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -1447,106 +1318,106 @@ export default function SimulacaoCustom() {
                         <div className="p-5 border-t border-[#30363d] bg-[#0d1117] space-y-6">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {/* Column 1: PRICE-TR */}
-                            <div className="bg-[#161b22] border-2 border-amber-500/20 rounded-lg p-5 relative overflow-hidden">
-                              <div className="absolute top-0 right-0 bg-amber-500/10 text-amber-400 text-[9px] font-black tracking-widest px-3 py-1 rounded-bl uppercase">
-                                Série Price
+                            <div className="bg-[#161b22] border-2 border-amber-500/30 rounded-lg p-5 relative overflow-hidden">
+                              <div className="absolute top-0 right-0 bg-amber-500/15 text-amber-400 text-[9px] font-black tracking-widest px-3 py-1 rounded-bl uppercase">
+                                Maior Financiamento
                               </div>
                               <h5 className="text-amber-400 text-sm font-extrabold tracking-wide uppercase mb-4 flex items-center gap-2">
-                                <span>📈</span> PRICE - TR
+                                <span>📈</span> PRICE - TR (Tabela Price)
                               </h5>
                               <div className="space-y-3 text-xs text-slate-300">
                                 <div className="flex justify-between py-1.5 border-b border-[#30363d]/50">
+                                  <span className="text-[#8b949e]">Valor Financiado:</span>
+                                  <strong className="text-amber-300 font-mono text-sm">
+                                    R$ {parseFloat(rapidaResultado.valorFinanciadoPRICE || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({rapidaResultado.cotaFinanciamentoPRICE})
+                                  </strong>
+                                </div>
+                                <div className="flex justify-between py-1.5 border-b border-[#30363d]/50">
+                                  <span className="text-[#8b949e]">Entrada Necessária:</span>
+                                  <strong className="text-white font-mono">
+                                    R$ {parseFloat(rapidaResultado.valorEntradaPRICE || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </strong>
+                                </div>
+                                <div className="flex justify-between py-1.5 border-b border-[#30363d]/50">
                                   <span className="text-[#8b949e]">Parcela Única (Fixa):</span>
                                   <strong className="text-amber-400 font-mono text-sm">
-                                    R$ {parseFloat(rapidaResultado.parcelaPrice || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    R$ {parseFloat(rapidaResultado.parcelaUnicaPRICE || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </strong>
                                 </div>
                                 <div className="flex justify-between py-1.5 border-b border-[#30363d]/50">
                                   <span className="text-[#8b949e]">Primeira Parcela:</span>
                                   <span className="font-mono">
-                                    R$ {parseFloat(rapidaResultado.parcelaPrice || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    R$ {parseFloat(rapidaResultado.parcelaUnicaPRICE || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </span>
                                 </div>
                                 <div className="flex justify-between py-1.5 border-b border-[#30363d]/50">
                                   <span className="text-[#8b949e]">Última Parcela (Mês {rapidaResultado.prazoMeses}):</span>
                                   <span className="font-mono">
-                                    R$ {parseFloat(rapidaResultado.parcelaPrice || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between py-1.5 border-b border-[#30363d]/50">
-                                  <span className="text-[#8b949e]">Valor Financiado:</span>
-                                  <span className="font-mono">
-                                    R$ {parseFloat(rapidaResultado.valorFinanciado || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between py-1.5 border-b border-[#30363d]/50">
-                                  <span className="text-[#8b949e]">Entrada Necessária:</span>
-                                  <span className="font-mono">
-                                    R$ {parseFloat(rapidaResultado.valorEntrada || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    R$ {parseFloat(rapidaResultado.parcelaUnicaPRICE || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </span>
                                 </div>
                                 <div className="flex justify-between py-1.5 border-b border-[#30363d]/50">
                                   <span className="text-[#8b949e]">Total Geral Pago:</span>
                                   <strong className="font-mono text-slate-200">
-                                    R$ {parseFloat(rapidaResultado.totalPagoPrice || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    R$ {parseFloat(rapidaResultado.totalPagoPRICE || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </strong>
                                 </div>
-                                <div className="pt-2">
-                                  <p className="text-[10px] text-slate-400 italic">
-                                    💡 A Tabela Price possui parcelas iniciais menores que a SAC, porém o saldo devedor amortiza de forma mais lenta, resultando em maior acúmulo de juros ao fim do prazo.
+                                <div className="pt-2 bg-amber-950/20 border border-amber-500/20 p-2.5 rounded">
+                                  <p className="text-[11px] text-amber-200">
+                                    ✅ <strong>Vantagem PRICE:</strong> Maximiza o poder de financiamento liberando o teto de até 80% do imóvel ({rapidaResultado.cotaFinanciamentoPRICE}), minimizando a entrada inicial necessária para o cliente.
                                   </p>
                                 </div>
                               </div>
                             </div>
 
                             {/* Column 2: SAC-TR */}
-                            <div className="bg-[#161b22] border-2 border-teal-500/20 rounded-lg p-5 relative overflow-hidden">
-                              <div className="absolute top-0 right-0 bg-teal-500/10 text-teal-400 text-[9px] font-black tracking-widest px-3 py-1 rounded-bl uppercase">
-                                Série Constante
+                            <div className="bg-[#161b22] border-2 border-teal-500/30 rounded-lg p-5 relative overflow-hidden">
+                              <div className="absolute top-0 right-0 bg-teal-500/15 text-teal-400 text-[9px] font-black tracking-widest px-3 py-1 rounded-bl uppercase">
+                                Menor Juros Total
                               </div>
                               <h5 className="text-teal-400 text-sm font-extrabold tracking-wide uppercase mb-4 flex items-center gap-2">
-                                <span>📉</span> SAC - TR
+                                <span>📉</span> SAC - TR (Amortização Constante)
                               </h5>
                               <div className="space-y-3 text-xs text-slate-300">
                                 <div className="flex justify-between py-1.5 border-b border-[#30363d]/50">
+                                  <span className="text-[#8b949e]">Valor Financiado:</span>
+                                  <strong className="text-teal-300 font-mono text-sm">
+                                    R$ {parseFloat(rapidaResultado.valorFinanciadoSAC || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({rapidaResultado.cotaFinanciamentoSAC})
+                                  </strong>
+                                </div>
+                                <div className="flex justify-between py-1.5 border-b border-[#30363d]/50">
+                                  <span className="text-[#8b949e]">Entrada Necessária:</span>
+                                  <strong className="text-white font-mono">
+                                    R$ {parseFloat(rapidaResultado.valorEntradaSAC || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </strong>
+                                </div>
+                                <div className="flex justify-between py-1.5 border-b border-[#30363d]/50">
                                   <span className="text-[#8b949e]">Primeira Parcela (SAC):</span>
                                   <strong className="text-teal-400 font-mono text-sm">
-                                    R$ {parseFloat(rapidaResultado.parcelaMaxima || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    R$ {parseFloat(rapidaResultado.primeiraParcelaSAC || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </strong>
                                 </div>
                                 <div className="flex justify-between py-1.5 border-b border-[#30363d]/50">
                                   <span className="text-[#8b949e]">Última Parcela (Mês {rapidaResultado.prazoMeses}):</span>
                                   <span className="font-mono text-teal-300 font-semibold">
-                                    R$ {parseFloat(rapidaResultado.ultimaParcelaSac || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    R$ {parseFloat(rapidaResultado.ultimaParcelaSAC || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </span>
                                 </div>
                                 <div className="flex justify-between py-1.5 border-b border-[#30363d]/50">
                                   <span className="text-[#8b949e]">Amortização Mensal Fixa:</span>
                                   <span className="font-mono">
-                                    R$ {((parseFloat(rapidaResultado.valorFinanciado || "0")) / (rapidaResultado.prazoMeses || 1)).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between py-1.5 border-b border-[#30363d]/50">
-                                  <span className="text-[#8b949e]">Valor Financiado:</span>
-                                  <span className="font-mono">
-                                    R$ {parseFloat(rapidaResultado.valorFinanciado || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between py-1.5 border-b border-[#30363d]/50">
-                                  <span className="text-[#8b949e]">Entrada Necessária:</span>
-                                  <span className="font-mono">
-                                    R$ {parseFloat(rapidaResultado.valorEntrada || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    R$ {parseFloat(rapidaResultado.amortizacaoMensalSAC || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </span>
                                 </div>
                                 <div className="flex justify-between py-1.5 border-b border-[#30363d]/50">
                                   <span className="text-[#8b949e]">Total Geral Pago:</span>
                                   <strong className="font-mono text-slate-200">
-                                    R$ {parseFloat(rapidaResultado.totalPagoSac || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    R$ {parseFloat(rapidaResultado.totalPagoSAC || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </strong>
                                 </div>
-                                <div className="pt-2">
-                                  <p className="text-[10px] text-slate-400 italic">
-                                    💡 No Sistema de Amortização Constante (SAC), o valor pago diminui mensalmente. Como a dívida cai mais rápido, você paga muito menos juros acumulados ao final do contrato.
+                                <div className="pt-2 bg-teal-950/20 border border-teal-500/20 p-2.5 rounded">
+                                  <p className="text-[11px] text-teal-200">
+                                    💰 <strong>Vantagem SAC:</strong> No SAC as parcelas são decrescentes e amortizam a dívida mais rapidamente, gerando uma economia substancial no montante final de juros pagos.
                                   </p>
                                 </div>
                               </div>
@@ -1554,21 +1425,35 @@ export default function SimulacaoCustom() {
                           </div>
 
                           {/* Comparison Insights */}
-                          {parseFloat(rapidaResultado.totalPagoPrice || "0") > parseFloat(rapidaResultado.totalPagoSac || "0") && (
-                            <div className="bg-emerald-950/40 border border-emerald-500/20 p-4 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-slate-200">
-                              <div>
-                                <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest block mb-0.5">Diferença Financeira (Economia Real)</span>
-                                <span className="text-xs">Ao optar pelo regime <strong className="text-teal-400">SAC-TR</strong> em vez do <strong className="text-amber-400">PRICE-TR</strong>, a economia total estimada em juros é de:</span>
+                          <div className="space-y-3">
+                            {parseFloat(rapidaResultado.diferencaFinanciamento || "0") > 0 && (
+                              <div className="bg-amber-950/40 border border-amber-500/30 p-4 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-slate-200">
+                                <div>
+                                  <span className="text-[10px] font-bold text-amber-400 uppercase tracking-widest block mb-0.5">⚡ Ganho de Poder de Compra na PRICE</span>
+                                  <span className="text-xs">Ao escolher a <strong className="text-amber-400">Tabela PRICE</strong>, o cliente financia <strong className="text-amber-300">R$ {parseFloat(rapidaResultado.diferencaFinanciamento || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2 })} A MAIS</strong>, reduzindo a entrada necessária para <strong className="text-white">R$ {parseFloat(rapidaResultado.valorEntradaPRICE || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong> com prestação fixa de <strong className="text-amber-300">R$ {parseFloat(rapidaResultado.parcelaUnicaPRICE || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2 })}/mês</strong>.</span>
+                                </div>
+                                <div className="text-xl text-amber-400 font-black font-mono tracking-tight shrink-0">
+                                  + R$ {parseFloat(rapidaResultado.diferencaFinanciamento || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                </div>
                               </div>
-                              <div className="text-xl text-emerald-400 font-black font-mono tracking-tight shrink-0">
-                                R$ {(parseFloat(rapidaResultado.totalPagoPrice || "0") - parseFloat(rapidaResultado.totalPagoSac || "0")).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            )}
+
+                            {parseFloat(rapidaResultado.diferencaTotalPago || "0") > 0 && (
+                              <div className="bg-emerald-950/40 border border-emerald-500/20 p-4 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-slate-200">
+                                <div>
+                                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest block mb-0.5">💰 Economia de Juros Acumulados no SAC</span>
+                                  <span className="text-xs">Ao optar pelo regime <strong className="text-teal-400">SAC-TR</strong> em vez do <strong className="text-amber-400">PRICE-TR</strong>, a economia total estimada em juros pagos ao longo dos {rapidaResultado.prazoMeses} meses é de:</span>
+                                </div>
+                                <div className="text-xl text-emerald-400 font-black font-mono tracking-tight shrink-0">
+                                  R$ {parseFloat(rapidaResultado.diferencaTotalPago || "0").toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </div>
                               </div>
-                            </div>
-                          )}
+                            )}
+                          </div>
 
                           {/* Full Parameters Table */}
                           <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-4 text-xs text-slate-300">
-                            <h6 className="text-[#8b949e] font-bold uppercase text-[10px] tracking-wider mb-3">Parâmetros Gerais Aplicados</h6>
+                            <h6 className="text-[#8b949e] font-bold uppercase text-[10px] tracking-wider mb-3">Parâmetros Oficiais Caixa Aplicados</h6>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                               <div>
                                 <span className="text-slate-400 block text-[9px] uppercase font-bold">Imóvel</span>
@@ -1587,8 +1472,8 @@ export default function SimulacaoCustom() {
                                 <strong className="font-mono text-green-400 text-xs">{rapidaResultado.taxaJurosEfetiva}</strong>
                               </div>
                               <div>
-                                <span className="text-slate-400 block text-[9px] uppercase font-bold">Cota Máxima</span>
-                                <strong className="text-white text-xs">{rapidaResultado.cotaFinanciamento} (Máximo)</strong>
+                                <span className="text-slate-400 block text-[9px] uppercase font-bold">Limite de Cota</span>
+                                <strong className="text-white text-xs">80,00% do Imóvel</strong>
                               </div>
                             </div>
                           </div>
@@ -1695,6 +1580,37 @@ export default function SimulacaoCustom() {
                             value={inDataInicioFluxo}
                             onChange={(e) => setInDataInicioFluxo(e.target.value)}
                           />
+                        </div>
+                      </div>
+
+                      {/* Amortização Caixa na Proposta Customizada */}
+                      <div className="bg-[#161b22] border border-[#30363d] p-3 rounded flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                          <span>🏦</span> Regime de Financiamento Caixa:
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setInSistemaAmortizacaoCustom("PRICE")}
+                            className={`px-3 py-1.5 rounded text-xs font-bold uppercase transition-all cursor-pointer ${
+                              inSistemaAmortizacaoCustom === "PRICE"
+                                ? "bg-amber-400 text-black shadow-md"
+                                : "bg-[#21262d] text-slate-400 hover:text-white border border-[#30363d]"
+                            }`}
+                          >
+                            Tabela PRICE (Maior Poder)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setInSistemaAmortizacaoCustom("SAC")}
+                            className={`px-3 py-1.5 rounded text-xs font-bold uppercase transition-all cursor-pointer ${
+                              inSistemaAmortizacaoCustom === "SAC"
+                                ? "bg-teal-400 text-black shadow-md"
+                                : "bg-[#21262d] text-slate-400 hover:text-white border border-[#30363d]"
+                            }`}
+                          >
+                            Tabela SAC (Menor Juros)
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -2035,7 +1951,7 @@ export default function SimulacaoCustom() {
 
                             <tr>
                               <td className="py-3 text-slate-300 font-medium text-xs">
-                                Financiamento Estimado Caixa (
+                                Financiamento Estimado Caixa ({inSistemaAmortizacaoCustom}) (
                                 {((financiamentoCaixa / valorImovelCustom) * 100).toFixed(2)}%)
                               </td>
                               <td className="py-3 text-right font-mono font-bold text-white text-xs">
@@ -2045,7 +1961,9 @@ export default function SimulacaoCustom() {
 
                             <tr>
                               <td className="py-3 text-slate-300 font-medium text-xs">
-                                Primeira Prestação de Financiamento Caixa (SAC / TR)
+                                {inSistemaAmortizacaoCustom === "PRICE"
+                                  ? "Prestação Fixa de Financiamento Caixa (PRICE / TR)"
+                                  : "Primeira Prestação de Financiamento Caixa (SAC / TR)"}
                               </td>
                               <td className="py-3 text-right font-mono font-bold text-green-400 text-xs">
                                 {formatCurrency(primeiraParcelaCaixa)}{" "}
