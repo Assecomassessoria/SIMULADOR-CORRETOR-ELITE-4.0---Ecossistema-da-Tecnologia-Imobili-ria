@@ -218,7 +218,7 @@ const Index = () => {
           isFull ? "elite-gradient border-gold/50" : "bg-card border-gold-bright/50"
         }`}
       >
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
+        <div className="max-w-7xl 2xl:max-w-[1550px] mx-auto px-4 py-3 flex items-center gap-3">
           {activeTenant?.logoUrl ? (
             <img
               src={activeTenant.logoUrl}
@@ -316,14 +316,14 @@ const Index = () => {
           </button>
 
         </div>
-        <p className="max-w-6xl mx-auto px-5 pb-2 italic text-[12px] text-white/40">
+        <p className="max-w-7xl 2xl:max-w-[1550px] mx-auto px-5 pb-2 italic text-[12px] text-white/40">
           "O diferencial do seu simulador não é apenas mostrar o valor da parcela, mas mostrar o cenário real para o
           cliente."
         </p>
       </header>
 
       {/* Content */}
-      <main className="max-w-6xl mx-auto px-3 sm:px-4 py-4">
+      <main className="max-w-7xl 2xl:max-w-[1550px] mx-auto px-3 sm:px-6 py-4">
         <div style={{ display: activeTab === "simulacao" ? "block" : "none" }}>
           <SimulacaoTecnica adminData={adminData} onDataUpdate={handleSimulacaoUpdate} isVisitor={isVisitor} />
         </div>
@@ -342,7 +342,7 @@ const Index = () => {
       </main>
 
       {/* Footer */}
-      <div className="max-w-6xl mx-auto px-4 py-3 text-center border-t border-border print:hidden">
+      <div className="max-w-7xl 2xl:max-w-[1550px] mx-auto px-4 py-3 text-center border-t border-border print:hidden">
         <p className="text-[10px] text-muted-foreground leading-relaxed">
           © Todos os direitos reservados <strong>INFORMETEC - Tecnologia em Informações</strong> - CNPJ
           00.921557/0001-65 | Apoio: <strong>RODRIGO DIAS</strong> - Gestão TI
@@ -354,7 +354,7 @@ const Index = () => {
 
       {/* Bottom Tab Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 elite-gradient border-t-2 border-gold/30 print:hidden">
-        <div className="max-w-6xl mx-auto flex">
+        <div className="max-w-7xl 2xl:max-w-[1550px] mx-auto flex">
           {tabs.map((tab) => (
             <button
               key={tab.id}

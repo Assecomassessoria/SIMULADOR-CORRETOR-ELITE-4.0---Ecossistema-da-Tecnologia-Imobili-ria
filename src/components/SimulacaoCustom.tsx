@@ -1049,43 +1049,43 @@ export default function SimulacaoCustom() {
                   Constante - SAC**, **Regra dos 80 anos** e limitador de **30% de comprometimento de renda**).
                 </p>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-[10px] sm:text-xs font-semibold text-[#8b949e] mb-2 uppercase tracking-wider whitespace-nowrap">
-                      Vl. Lançamento/Imóvel (R$)
+                      Vl. Lançamento/Imóvel (R$) <span className="text-slate-500 font-normal italic hidden sm:inline">(Ex: R$ 240.000,00)</span>
                     </label>
                     <input
                       type="text"
                       inputMode="numeric"
                       id="campoValorImovel"
-                      placeholder="Ex: 240.000 (R$ 240.000,00)"
-                      className="w-full h-11 bg-[#0d1117] border border-[#30363d] text-white px-3 text-sm rounded focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400/30 transition-all font-mono"
+                      placeholder="Ex: 240.000"
+                      className="w-full h-11 bg-[#0d1117] border border-[#30363d] text-white px-3.5 text-sm rounded focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400/30 transition-all font-mono min-w-0"
                       value={rapidaValorImovel}
                       onChange={(e) => setRapidaValorImovel(formatFloatToBr(e.target.value))}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-[#8b949e] mb-2 uppercase tracking-wider">
-                      Renda Familiar (R$)
+                    <label className="block text-xs font-semibold text-[#8b949e] mb-2 uppercase tracking-wider whitespace-nowrap">
+                      Renda Familiar (R$) <span className="text-slate-500 font-normal italic hidden sm:inline">(Ex: R$ 12.700,00)</span>
                     </label>
                     <input
                       type="text"
                       inputMode="numeric"
                       id="campoRenda"
-                      placeholder="Ex: 12.700 (R$ 12.700,00)"
-                      className="w-full h-11 bg-[#0d1117] border border-[#30363d] text-white px-3 text-sm rounded focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400/30 transition-all font-mono"
+                      placeholder="Ex: 12.700"
+                      className="w-full h-11 bg-[#0d1117] border border-[#30363d] text-white px-3.5 text-sm rounded focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400/30 transition-all font-mono min-w-0"
                       value={rapidaRenda}
                       onChange={(e) => setRapidaRenda(formatFloatToBr(e.target.value))}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-[#8b949e] mb-2 uppercase tracking-wider">
+                    <label className="block text-xs font-semibold text-[#8b949e] mb-2 uppercase tracking-wider whitespace-nowrap">
                       Data Nascimento
                     </label>
                     <input
                       type="date"
                       id="campoDataNascimento"
-                      className="w-full h-11 bg-[#0d1117] border border-[#30363d] text-white px-3 text-sm rounded focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400/30 transition-all font-mono"
+                      className="w-full h-11 bg-[#0d1117] border border-[#30363d] text-white px-3.5 text-sm rounded focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400/30 transition-all font-mono min-w-0"
                       value={rapidaDataNascimento}
                       onChange={(e) => setRapidaDataNascimento(e.target.value)}
                     />
@@ -1527,44 +1527,46 @@ export default function SimulacaoCustom() {
                     </div>
 
                     <div className="space-y-4">
-                      <div>
-                        <label className="block text-[10px] sm:text-[11px] font-semibold text-[#8b949e] mb-1.5 uppercase tracking-wider whitespace-nowrap">
-                          Vl. Lançamento/Imóvel (R$){" "}
-                          <span className="text-slate-500 font-normal italic hidden sm:inline">(Ex: R$ 270.000,00)</span>
-                        </label>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          className="w-full bg-[#0d1117] border border-[#30363d] focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]/30 focus:outline-none rounded text-white p-3 text-sm font-mono transition-all"
-                          placeholder="270.000"
-                          value={inValorImovel}
-                          onChange={(e) => handleInValorImovelChange(e.target.value)}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-[11px] font-semibold text-[#8b949e] mb-1.5 uppercase tracking-wider">
-                            Renda Familiar (R$){" "}
-                            <span className="text-slate-500 font-normal italic">(Ex: R$ 5.000,00)</span>
+                          <label className="block text-[10px] sm:text-[11px] font-semibold text-[#8b949e] mb-1.5 uppercase tracking-wider whitespace-nowrap">
+                            Vl. Lançamento/Imóvel (R$){" "}
+                            <span className="text-slate-500 font-normal italic hidden sm:inline">(Ex: R$ 270.000,00)</span>
                           </label>
                           <input
                             type="text"
                             inputMode="numeric"
-                            className="w-full bg-[#0d1117] border border-[#30363d] focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]/30 focus:outline-none rounded text-white p-3 text-sm font-mono transition-all"
+                            className="w-full bg-[#0d1117] border border-[#30363d] focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]/30 focus:outline-none rounded text-white px-3.5 py-2.5 text-sm font-mono transition-all min-w-0"
+                            placeholder="270.000"
+                            value={inValorImovel}
+                            onChange={(e) => handleInValorImovelChange(e.target.value)}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] sm:text-[11px] font-semibold text-[#8b949e] mb-1.5 uppercase tracking-wider whitespace-nowrap">
+                            Renda Familiar (R$){" "}
+                            <span className="text-slate-500 font-normal italic hidden sm:inline">(Ex: R$ 5.000,00)</span>
+                          </label>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            className="w-full bg-[#0d1117] border border-[#30363d] focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]/30 focus:outline-none rounded text-white px-3.5 py-2.5 text-sm font-mono transition-all min-w-0"
                             placeholder="5.000"
                             value={inRenda}
                             onChange={(e) => handleInRendaChange(e.target.value)}
                           />
                         </div>
+                      </div>
 
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-[11px] font-semibold text-[#8b949e] mb-1.5 uppercase tracking-wider">
                             Data Nascimento Proponente
                           </label>
                           <input
                             type="date"
-                            className="w-full bg-[#0d1117] border border-[#30363d] focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]/30 focus:outline-none rounded text-white p-3 text-sm transition-all"
+                            className="w-full bg-[#0d1117] border border-[#30363d] focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]/30 focus:outline-none rounded text-white px-3.5 py-2.5 text-sm transition-all min-w-0"
                             value={inDataNascimento}
                             onChange={(e) => setInDataNascimento(e.target.value)}
                           />
@@ -1576,7 +1578,7 @@ export default function SimulacaoCustom() {
                           </label>
                           <input
                             type="date"
-                            className="w-full bg-[#0d1117] border border-[#30363d] focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]/30 focus:outline-none rounded text-white p-3 text-sm transition-all"
+                            className="w-full bg-[#0d1117] border border-[#30363d] focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]/30 focus:outline-none rounded text-white px-3.5 py-2.5 text-sm transition-all min-w-0"
                             value={inDataInicioFluxo}
                             onChange={(e) => setInDataInicioFluxo(e.target.value)}
                           />
@@ -1623,7 +1625,7 @@ export default function SimulacaoCustom() {
                     </div>
 
                     <div className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                         <div>
                           <label className="block text-[11px] font-semibold text-[#8b949e] mb-1.5 uppercase tracking-wider">
                             Uso do FGTS (R$)
@@ -1631,7 +1633,7 @@ export default function SimulacaoCustom() {
                           <input
                             type="text"
                             inputMode="numeric"
-                            className="w-full bg-[#0d1117] border border-[#30363d] focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]/30 focus:outline-none rounded text-white p-3 text-sm font-mono transition-all"
+                            className="w-full bg-[#0d1117] border border-[#30363d] focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]/30 focus:outline-none rounded text-white px-3 py-2.5 text-sm font-mono transition-all min-w-0"
                             placeholder="10.000"
                             value={inFGTS}
                             onChange={(e) => setInFGTS(formatFloatToBr(e.target.value))}
@@ -1644,7 +1646,7 @@ export default function SimulacaoCustom() {
                           </label>
                           <input
                             type="text"
-                            className="w-full bg-[#0d1117] border border-[#30363d] focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]/30 focus:outline-none rounded text-white p-3 text-sm font-mono transition-all"
+                            className="w-full bg-[#0d1117] border border-[#30363d] focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]/30 focus:outline-none rounded text-white px-3 py-2.5 text-sm font-mono transition-all min-w-0"
                             placeholder="5"
                             value={inPercentualAto}
                             onChange={(e) => handleInPercentualAtoChange(e.target.value)}
@@ -1658,7 +1660,7 @@ export default function SimulacaoCustom() {
                           <input
                             type="text"
                             inputMode="numeric"
-                            className="w-full bg-[#0d1117] border border-[#30363d] focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]/30 focus:outline-none rounded text-white p-3 text-sm font-mono transition-all"
+                            className="w-full bg-[#0d1117] border border-[#30363d] focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]/30 focus:outline-none rounded text-white px-3 py-2.5 text-sm font-mono transition-all min-w-0"
                             placeholder="15.000"
                             value={inAtoVista}
                             onChange={(e) => handleInAtoVistaChange(e.target.value)}
@@ -1666,7 +1668,7 @@ export default function SimulacaoCustom() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-[11px] font-semibold text-[#8b949e] mb-1.5 uppercase tracking-wider">
                             Prazo Pró-Soluto (Total meses)
@@ -1675,7 +1677,7 @@ export default function SimulacaoCustom() {
                             type="number"
                             min="1"
                             max="180"
-                            className="w-full bg-[#0d1117] border border-[#30363d] focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]/30 focus:outline-none rounded text-white p-3 text-sm font-mono transition-all"
+                            className="w-full bg-[#0d1117] border border-[#30363d] focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]/30 focus:outline-none rounded text-white px-3 py-2.5 text-sm font-mono transition-all min-w-0"
                             value={inPrazoTotal}
                             onChange={(e) => setInPrazoTotal(parseInt(e.target.value) || 0)}
                           />
@@ -1689,7 +1691,7 @@ export default function SimulacaoCustom() {
                             type="number"
                             min="0"
                             max="10"
-                            className="w-full bg-[#0d1117] border border-[#30363d] focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]/30 focus:outline-none rounded text-white p-3 text-sm font-mono transition-all"
+                            className="w-full bg-[#0d1117] border border-[#30363d] focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]/30 focus:outline-none rounded text-white px-3 py-2.5 text-sm font-mono transition-all min-w-0"
                             value={inQtdIntermediarias}
                             onChange={(e) => {
                               const val = parseInt(e.target.value) || 0;
