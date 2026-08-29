@@ -1905,7 +1905,7 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
                         <>
                           <div className="flex items-center justify-between mb-1">
                             <label className="block text-xs font-semibold text-primary">
-                              {results.percAprov > 0 ? `Sinal Desejável (${percSinalStr}%)` : "Sinal Desejável (%)"}
+                              {results.percAprov > 0 ? `Sinal Desejável Aprovação (${percSinalStr}%)` : "Sinal Desejável Aprovação (%)"}
                             </label>
                             {results.percAprov > 0 && percSinalDesejavel > 0 && (
                               <button
