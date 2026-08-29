@@ -223,29 +223,32 @@ const Index = () => {
             <img
               src={activeTenant.logoUrl}
               alt={activeTenant.name}
-              className="w-10 h-10 object-cover rounded flex-shrink-0 bg-white"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = "/logo-elite.jpg";
-              }}
-            />
-          ) : adminData.imgEmp ? (
-            <img
-              src={adminData.imgEmp}
-              alt="Empreendimento"
-              className="w-10 h-10 object-cover rounded flex-shrink-0"
+              className="w-11 h-11 object-cover rounded-lg flex-shrink-0 bg-white border border-gold/40 shadow-sm"
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).src = "/logo-elite.jpg";
               }}
             />
           ) : (
-            <img
-              src="/logo-elite.jpg"
-              alt="Elite"
-              className="w-10 h-10 object-cover rounded flex-shrink-0"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = "/pwa-icon-192.png";
-              }}
-            />
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <img
+                src="/logo-elite.jpg"
+                alt="Logo Oficial Simulador Corretor de Elite 4.0"
+                className="w-11 h-11 object-cover rounded-lg flex-shrink-0 border border-gold/40 shadow-md shadow-gold/10"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = "/pwa-icon-192.png";
+                }}
+              />
+              {adminData.imgEmp && (
+                <img
+                  src={adminData.imgEmp}
+                  alt="Empreendimento"
+                  className="w-10 h-10 object-cover rounded-lg flex-shrink-0 border border-gold/30 hidden sm:block"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLElement).style.display = "none";
+                  }}
+                />
+              )}
+            </div>
           )}
           <div className="min-w-0 flex-1">
             <h1
