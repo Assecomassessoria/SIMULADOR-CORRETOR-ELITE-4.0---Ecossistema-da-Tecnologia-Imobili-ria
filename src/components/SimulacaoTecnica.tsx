@@ -1898,14 +1898,37 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
 
                 <div className="grid grid-cols-2 gap-3 mt-3">
                   <div>
-                    <label className="block text-xs font-semibold text-primary mb-1">Sinal (%)</label>
-                    <input
-                      type="number"
-                      placeholder="%"
-                      value={fields.resultPercentual}
-                      onChange={(e) => updateField("resultPercentual", e.target.value)}
-                      className="w-full px-3 py-2.5 border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold bg-[#F8FAFC]"
-                    />
+                    {(() => {
+                      const percSinalDesejavel = results.percAprov > 0 ? Math.max(0, 80 - results.percAprov) : 0;
+                      const percSinalStr = percSinalDesejavel > 0 ? percSinalDesejavel.toFixed(2).replace(".", ",") : "0,00";
+                      return (
+                        <>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-xs font-semibold text-primary">
+                              {results.percAprov > 0 ? `Sinal Desejável (${percSinalStr}%)` : "Sinal Desejável (%)"}
+                            </label>
+                            {results.percAprov > 0 && percSinalDesejavel > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => updateField("resultPercentual", percSinalDesejavel.toFixed(2))}
+                                className="text-[10px] text-amber-700 hover:text-amber-800 font-bold underline cursor-pointer"
+                                title="Preencher com o percentual desejável de sinal"
+                              >
+                                Usar {percSinalStr}%
+                              </button>
+                            )}
+                          </div>
+                          <input
+                            type="number"
+                            step="0.01"
+                            placeholder={results.percAprov > 0 ? `${percSinalStr}%` : "%"}
+                            value={fields.resultPercentual}
+                            onChange={(e) => updateField("resultPercentual", e.target.value)}
+                            className="w-full px-3 py-2.5 border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold bg-[#F8FAFC]"
+                          />
+                        </>
+                      );
+                    })()}
                   </div>
                   <ResultField label="Sinal (R$)" value={formatCurrency(results.sinalValor)} />
                 </div>
