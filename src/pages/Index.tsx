@@ -23,6 +23,7 @@ import AdminPanel from "@/components/AdminPanel";
 import CrmTab from "@/components/CrmTab";
 import PainelComercial from "@/components/PainelComercial";
 import SugestoesModal from "@/components/SugestoesModal";
+import TourGuiado from "@/components/TourGuiado";
 import { getActiveTenant, type TenantConfig } from "@/lib/tenant";
 
 import {
@@ -214,6 +215,7 @@ const Index = () => {
 
       {/* Header */}
       <header
+        id="tour-header"
         className={`text-gold border-b-4 sticky z-40 print:hidden ${isVisitor ? "top-8" : "top-0"} ${
           isFull ? "elite-gradient border-gold/50" : "bg-card border-gold-bright/50"
         }`}
@@ -280,7 +282,9 @@ const Index = () => {
               }}
             />
           )}
+          <TourGuiado onTabChange={setActiveTab} />
           <button
+            id="tour-btn-marketing"
             onClick={() => navigate("/marketing")}
             className="p-2 text-gold/60 hover:text-gold transition-colors"
             title="Marketing"
@@ -288,6 +292,7 @@ const Index = () => {
             <Megaphone className="w-5 h-5" />
           </button>
           <button
+            id="tour-btn-luiza"
             onClick={() => navigate("/luiza")}
             className="p-2 text-gold/60 hover:text-gold transition-colors"
             title="Luiza IA"
@@ -311,6 +316,7 @@ const Index = () => {
             </button>
           )}
           <button
+            id="tour-btn-admin"
             onClick={() => setAdminOpen(true)}
             className="p-2 text-gold/60 hover:text-gold transition-colors"
             title="Configurações Administrativas"
@@ -361,6 +367,7 @@ const Index = () => {
           {tabs.map((tab) => (
             <button
               key={tab.id}
+              id={`tour-tab-${tab.id}`}
               onClick={() => setActiveTab(tab.id)}
               className={`flex-1 flex flex-col items-center gap-1 py-3 transition-all ${
                 activeTab === tab.id ? "text-gold-bright" : "text-gold/40 hover:text-gold/70"
