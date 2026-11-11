@@ -24,6 +24,7 @@ import CrmTab from "@/components/CrmTab";
 import PainelComercial from "@/components/PainelComercial";
 import SugestoesModal from "@/components/SugestoesModal";
 import TourGuiado from "@/components/TourGuiado";
+import SystemLogo from "@/components/SystemLogo";
 import { getActiveTenant, type TenantConfig } from "@/lib/tenant";
 
 import {
@@ -221,37 +222,32 @@ const Index = () => {
         }`}
       >
         <div className="max-w-7xl 2xl:max-w-[1550px] mx-auto px-4 py-3 flex items-center gap-3">
-          {activeTenant?.logoUrl ? (
-            <img
-              src={activeTenant.logoUrl}
-              alt={activeTenant.name}
-              className="w-11 h-11 object-cover rounded-lg flex-shrink-0 bg-white border border-gold/40 shadow-sm"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = "/logo-elite.jpg";
-              }}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <SystemLogo
+              className="w-11 h-11 object-cover rounded-lg flex-shrink-0 border border-gold/40 shadow-md shadow-gold/10"
+              alt="Logo Oficial Simulador Corretor de Elite 4.0"
             />
-          ) : (
-            <div className="flex items-center gap-2 flex-shrink-0">
+            {activeTenant?.logoUrl && (
               <img
-                src="/logo-elite.jpg"
-                alt="Logo Oficial Simulador Corretor de Elite 4.0"
-                className="w-11 h-11 object-cover rounded-lg flex-shrink-0 border border-gold/40 shadow-md shadow-gold/10"
+                src={activeTenant.logoUrl}
+                alt={activeTenant.name}
+                className="w-10 h-10 object-cover rounded-lg flex-shrink-0 bg-white border border-gold/40 shadow-sm"
                 onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).src = "/pwa-icon-192.png";
+                  (e.currentTarget as HTMLElement).style.display = "none";
                 }}
               />
-              {adminData.imgEmp && (
-                <img
-                  src={adminData.imgEmp}
-                  alt="Empreendimento"
-                  className="w-10 h-10 object-cover rounded-lg flex-shrink-0 border border-gold/30 hidden sm:block"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLElement).style.display = "none";
-                  }}
-                />
-              )}
-            </div>
-          )}
+            )}
+            {!activeTenant?.logoUrl && adminData.imgEmp && (
+              <img
+                src={adminData.imgEmp}
+                alt="Empreendimento"
+                className="w-10 h-10 object-cover rounded-lg flex-shrink-0 border border-gold/30 hidden sm:block"
+                onError={(e) => {
+                  (e.currentTarget as HTMLElement).style.display = "none";
+                }}
+              />
+            )}
+          </div>
           <div className="min-w-0 flex-1">
             <h1
               className={`text-sm sm:text-base font-bold tracking-wider uppercase leading-tight truncate ${isFull ? "text-gold" : "text-primary"}`}

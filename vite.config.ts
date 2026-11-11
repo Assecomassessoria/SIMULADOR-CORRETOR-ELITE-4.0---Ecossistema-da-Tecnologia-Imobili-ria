@@ -40,11 +40,11 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["app-icon.ico", "pwa-icon-192.png", "pwa-icon-512.png"],
+      includeAssets: ["favicon.ico", "app-icon.ico", "logo-elite.jpg", "pwa-icon-192.png", "pwa-icon-512.png"],
       workbox: {
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         navigateFallbackDenylist: [/^\/~oauth/],
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        globPatterns: ["**/*.{js,css,html,ico,png,jpg,svg,woff2}"],
       },
       manifest: {
         name: "Simulador Corretor de Elite 4.0",

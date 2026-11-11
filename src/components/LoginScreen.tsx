@@ -14,8 +14,8 @@ import {
   Lock,
   ShoppingCart,
 } from "lucide-react";
-const logoElite = "/logo-elite.jpg";
 import DemoAdminPanel from "@/components/DemoAdminPanel";
+import SystemLogo from "@/components/SystemLogo";
 import PainelComercial from "@/components/PainelComercial"; // Painel Comercial modal
 import LgpdPanel from "@/components/LgpdPanel";
 import ForgotPasswordModal from "@/components/ForgotPasswordModal";
@@ -1203,13 +1203,9 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
       <div className="fixed inset-0 z-50 flex flex-col items-center justify-center elite-gradient">
         <div className="flex flex-col items-center gap-6 px-6 w-full max-w-sm">
           <div className="text-center">
-            <img
-              src={logoElite}
+            <SystemLogo
               alt="Elite"
-              className="w-24 h-24 mx-auto mb-3 drop-shadow-lg rounded-2xl"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = "/pwa-icon-192.png";
-              }}
+              className="w-24 h-24 mx-auto mb-3 drop-shadow-lg rounded-2xl object-cover border border-gold/40"
             />
             <h1 className="text-lg font-bold text-gold uppercase">Senha Gravada ✅</h1>
             <p className="text-gold-bright text-sm mt-1">A senha de liberação foi salva com sucesso!</p>
@@ -1285,13 +1281,9 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
       <div className="fixed inset-0 z-50 flex flex-col items-center justify-center elite-gradient">
         <div className="flex flex-col items-center gap-6 px-6 w-full max-w-sm">
           <div className="text-center">
-            <img
-              src={logoElite}
+            <SystemLogo
               alt="Elite"
-              className="w-24 h-24 mx-auto mb-3 drop-shadow-lg rounded-2xl"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = "/pwa-icon-192.png";
-              }}
+              className="w-24 h-24 mx-auto mb-3 drop-shadow-lg rounded-2xl object-cover border border-gold/40"
             />
             <h1 className="text-lg font-bold text-gold uppercase">Sistema Liberado</h1>
             <p className="text-gold-bright text-sm mt-1">Acesso total confirmado!</p>
@@ -1324,13 +1316,9 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
       <div className="fixed inset-0 z-50 flex flex-col items-center justify-center elite-gradient">
         <div className="flex flex-col items-center gap-6 px-6 w-full max-w-sm">
           <div className="text-center">
-            <img
-              src={logoElite}
+            <SystemLogo
               alt="Elite"
-              className="w-24 h-24 mx-auto mb-3 drop-shadow-lg rounded-2xl"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = "/pwa-icon-192.png";
-              }}
+              className="w-24 h-24 mx-auto mb-3 drop-shadow-lg rounded-2xl object-cover border border-gold/40"
             />
             <h1 className="text-lg font-bold text-gold uppercase">Acesso ELITE Liberado</h1>
           </div>
@@ -1406,13 +1394,9 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
       <div className="fixed inset-0 z-50 flex items-center justify-center elite-gradient overflow-y-auto">
         <div className="bg-card rounded-xl border-2 border-gold/50 p-6 w-full max-w-xs text-center space-y-4 my-8">
           <div className="text-center">
-            <img
-              src={logoElite}
+            <SystemLogo
               alt="Elite"
-              className="w-20 h-20 mx-auto mb-2 drop-shadow-lg rounded-2xl"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = "/pwa-icon-192.png";
-              }}
+              className="w-20 h-20 mx-auto mb-2 drop-shadow-lg rounded-2xl object-cover border border-gold/40"
             />
             <h3 className="text-primary font-bold uppercase text-sm">Cadastro de Acesso</h3>
             <p className="text-muted-foreground text-xs mt-1">
@@ -1481,13 +1465,9 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
             <X className="w-5 h-5" />
           </button>
           <div className="text-center">
-            <img
-              src={logoElite}
+            <SystemLogo
               alt="Elite"
-              className="w-20 h-20 mx-auto mb-2 drop-shadow-lg rounded-2xl"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = "/pwa-icon-192.png";
-              }}
+              className="w-20 h-20 mx-auto mb-2 drop-shadow-lg rounded-2xl object-cover border border-gold/40"
             />
             <h3 className="text-primary font-bold uppercase text-sm">
               {pendingAccessLevel === "pin_corretor" ? "Informe seu Email" : "Cadastro de Email"}
@@ -1574,13 +1554,9 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
       <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 w-full max-w-sm mx-auto overflow-y-auto pb-20 pt-4 scrollbar-hide">
         <div className="animate-fade-in flex flex-col items-center gap-3 sm:gap-5 w-full">
           <div className="text-center">
-            <img
-              src={logoElite}
+            <SystemLogo
               alt="Simulador Corretor de Elite 4.0"
-              className="w-20 h-20 sm:w-32 sm:h-32 mx-auto mb-2 sm:mb-4 drop-shadow-lg rounded-2xl"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = "/pwa-icon-192.png";
-              }}
+              className="w-20 h-20 sm:w-32 sm:h-32 mx-auto mb-2 sm:mb-4 drop-shadow-lg rounded-2xl object-cover border border-gold/40 shadow-gold/20"
             />
             <h1 className="text-base sm:text-xl font-bold tracking-wider uppercase leading-tight">
               {isFull ? (

@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AdManagerForm from "@/components/marketing/AdManagerForm";
 import LuizaEliteMarketing from "@/components/marketing/LuizaEliteMarketing";
 import MarketingConnections from "@/components/marketing/MarketingConnections";
+import SystemLogo from "@/components/SystemLogo";
 
 const MarketingIndex = () => {
   const navigate = useNavigate();
@@ -21,6 +22,7 @@ const MarketingIndex = () => {
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
+            <SystemLogo className="w-9 h-9 object-cover rounded-lg border border-gold/40 shadow-sm flex-shrink-0" />
             <TabsList className="bg-primary/50 border border-gold/20">
               <TabsTrigger value="admanager" className="gap-2 text-xs data-[state=active]:bg-gold/20 data-[state=active]:text-gold">
                 <Megaphone className="w-4 h-4" /> IA SOCIAL AD MANAGE

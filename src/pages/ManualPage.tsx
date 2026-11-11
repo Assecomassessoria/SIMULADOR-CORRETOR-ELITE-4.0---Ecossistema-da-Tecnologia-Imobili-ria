@@ -1,5 +1,6 @@
 import { Printer, Download, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import SystemLogo from "@/components/SystemLogo";
 
 const ManualPage = () => {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ const ManualPage = () => {
         <button onClick={() => navigate("/")} className="flex items-center gap-1 text-sm text-blue-600 hover:underline">
           <ArrowLeft className="w-4 h-4" /> Voltar
         </button>
+        <SystemLogo className="w-8 h-8 object-cover rounded-md border border-amber-500/40 shadow-sm flex-shrink-0" />
         <div className="flex-1" />
         <button
           onClick={handlePrint}
@@ -28,6 +30,7 @@ const ManualPage = () => {
       <div className="max-w-3xl mx-auto px-6 py-10 print:px-4 print:py-2">
         {/* Capa */}
         <div className="text-center mb-12 print:mb-8">
+          <SystemLogo className="w-20 h-20 mx-auto mb-4 object-cover rounded-2xl border-2 border-amber-400/60 shadow-md" />
           <h1 className="text-3xl font-bold uppercase tracking-wider text-gray-900 mb-2">Manual Completo</h1>
           <h2 className="text-xl font-semibold text-amber-600 mb-1">Simulador Corretor de Elite 4.0</h2>
           <p className="text-sm text-gray-500">Venda Segura — Informetec</p>

@@ -13,6 +13,7 @@ import { checkLoginValid } from "@/lib/eliteUtils";
 import LoginScreen from "@/components/LoginScreen";
 import { setLoginDate } from "@/lib/eliteUtils";
 import MermaidBlock from "@/components/MermaidBlock";
+import SystemLogo from "@/components/SystemLogo";
 import luizaAvatar from "@/assets/luiza-elite-avatar.png";
 
 const LUIZA_PHOTO_URL = "https://pub-a3cfd193eb6748ec96b423de3caf804f.r2.dev/2%20-%20Luiza%20IA%20-%20Assistente%20Simulado.png";
@@ -553,6 +554,7 @@ export default function LuizaElitePage() {
             >
               <MessageSquare size={18} />
             </button>
+            <SystemLogo className="w-9 h-9 object-cover rounded-lg border border-gold/40 shadow-sm flex-shrink-0" />
             <div>
               <h2 className="font-bold text-sm text-gold">Luiza Elite — Assistente IA</h2>
               <p className="text-[9px] text-gold/50 uppercase tracking-[2px]">Simulador Corretor de Elite 4.0</p>

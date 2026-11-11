@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ChatWidget from "@/components/ChatWidget";
 import LgpdPanel from "@/components/LgpdPanel";
+import SystemLogo from "@/components/SystemLogo";
 import {
   Calculator,
   Shield,
@@ -48,7 +49,7 @@ const LandingPage = () => {
       <nav className="sticky top-0 z-50 elite-gradient border-b-2 border-gold/30 backdrop-blur-sm">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/pwa-icon-192.png" alt="Elite" className="w-10 h-10 rounded" />
+            <SystemLogo className="w-10 h-10 object-cover rounded-lg border border-gold/40 shadow-sm flex-shrink-0" alt="Simulador Corretor de Elite 4.0" />
             <div>
               <h1 className="text-sm sm:text-base font-bold tracking-wider uppercase text-gold">
                 Corretor de Elite 4.0

@@ -13,6 +13,7 @@ import CrmReports from "@/components/crm/CrmReports";
 import CrmConstrutoras from "@/components/crm/CrmConstrutoras";
 import CrmCadastro from "@/components/crm/CrmCadastro";
 import LoginScreen from "@/components/LoginScreen";
+import SystemLogo from "@/components/SystemLogo";
 
 import { setLoginDate } from "@/lib/eliteUtils";
 
@@ -70,6 +71,7 @@ const CrmPage = () => {
       {/* Header */}
       <header className="elite-gradient text-gold border-b-2 border-gold/30 sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
+          <SystemLogo className="w-10 h-10 object-cover rounded-lg border border-gold/40 shadow-sm flex-shrink-0" />
           <div className="min-w-0 flex-1">
             <h1 className="text-base sm:text-lg font-bold tracking-wider uppercase text-gold">
               CRM <span className="text-gold-bright">Elite 4.0</span>
