@@ -222,7 +222,7 @@ export default function PainelComercial({ isOpen, onClose }: PainelComercialProp
   const planoLabel = cadastro?.planoLabel || "Sem plano vinculado";
   const ativos = corretores.filter((c) => c.status === "ativo").length;
   const disponiveis = limiteUsuarios - ativos;
-  const isMasterAccess = senhaAcesso === "472370";
+  const isMasterAccess = senhaAcesso === "472370" || senhaAcesso === "47231970";
   const empresaPreenchida = !!(cadastro?.razaoSocial?.trim() && cadastro?.cpfCnpj?.trim());
   const podeCadastrarCorretor = empresaPreenchida || isMasterAccess;
 

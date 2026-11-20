@@ -14,10 +14,12 @@ import CrmConstrutoras from "@/components/crm/CrmConstrutoras";
 import CrmCadastro from "@/components/crm/CrmCadastro";
 import LoginScreen from "@/components/LoginScreen";
 import SystemLogo from "@/components/SystemLogo";
+import { useFirebaseAuth } from "@/contexts/FirebaseContext";
 
-import { setLoginDate } from "@/lib/eliteUtils";
+import { setLoginDate, logoutSession } from "@/lib/eliteUtils";
 
 const CrmPage = () => {
+  const { signOutGoogle } = useFirebaseAuth();
   const [isLoggedIn, setIsLoggedIn] = useState(checkLoginValid);
   const [leads, setLeads] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -98,7 +100,9 @@ const CrmPage = () => {
             size="icon"
             variant="ghost"
             className="text-red-400/70 hover:text-red-400 hover:bg-gold/10"
-            onClick={() => {
+            onClick={async () => {
+              await signOutGoogle();
+              await logoutSession();
               localStorage.removeItem("elite_login_date");
               setIsLoggedIn(false);
             }}

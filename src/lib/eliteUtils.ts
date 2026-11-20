@@ -75,6 +75,14 @@ export function calcularDesconto(valorNormal: number, valorVenda: number): numbe
   return ((valorNormal - valorVenda) / valorNormal) * 100;
 }
 
+export const MASTER_EMAIL = 'lourenco.consultorimob@gmail.com';
+export const MASTER_PASSWORD = '47231970';
+
+export function isMasterEmail(email?: string | null): boolean {
+  if (!email) return false;
+  return email.trim().toLowerCase() === MASTER_EMAIL;
+}
+
 // === SERVER-SIDE PASSWORD VALIDATION ===
 export async function validatePassword(
   password: string,
@@ -96,7 +104,7 @@ export async function validatePassword(
   email?: string,
 ): Promise<{ valid: boolean; accessLevel: string; diasRestantes?: number }> {
   // MASTER PASSWORD - Immediate local validation for all actions
-  if (password === "47231970") {
+  if (password === MASTER_PASSWORD) {
     return { valid: true, accessLevel: 'admin', diasRestantes: 365 };
   }
 
@@ -163,8 +171,21 @@ const USER_EMAIL_KEY = 'elite_user_email';
 const SESSION_TOKEN_KEY = 'elite_session_token';
 const VISITOR_MODE_KEY = 'elite_visitor_mode';
 const MASTER_ACCESS_KEY = 'elite_master_access';
+const AUTH_PROVIDER_KEY = 'elite_auth_provider';
 
 export const VISITOR_PASSWORD = 'VISITANTE-12345678';
+
+export function getAuthProvider(): string | null {
+  return localStorage.getItem(AUTH_PROVIDER_KEY);
+}
+
+export function setAuthProvider(provider: 'google' | 'master' | 'password'): void {
+  localStorage.setItem(AUTH_PROVIDER_KEY, provider);
+}
+
+export function clearAuthProvider(): void {
+  localStorage.removeItem(AUTH_PROVIDER_KEY);
+}
 
 export function isVisitorMode(): boolean {
   return localStorage.getItem(VISITOR_MODE_KEY) === 'true';
@@ -236,6 +257,10 @@ export async function createSession(email: string, deviceFingerprint?: string): 
 }
 
 export async function validateSession(): Promise<boolean> {
+  // Master access and Google Authentication sessions remain valid independently of Supabase edge token
+  if (isMasterAccess() || getAuthProvider() === 'google') {
+    return true;
+  }
   const token = getSessionToken();
   if (!token) return false;
   try {
@@ -259,14 +284,18 @@ export async function validateSession(): Promise<boolean> {
 
 export async function logoutSession(): Promise<void> {
   const token = getSessionToken();
-  if (!token) return;
-  try {
-    const { supabase } = await import('@/integrations/supabase/client');
-    await supabase.functions.invoke('manage-session', {
-      body: { action: 'logout', session_token: token },
-    });
-  } catch { /* silent */ }
-  clearSessionToken();
+  if (token) {
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      await supabase.functions.invoke('manage-session', {
+        body: { action: 'logout', session_token: token },
+      });
+    } catch { /* silent */ }
+    clearSessionToken();
+  }
+  setMasterAccess(false);
+  clearAuthProvider();
+  sessionStorage.removeItem('luiza_elite_auth');
 }
 
 // Admin data keys

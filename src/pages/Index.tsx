@@ -26,6 +26,7 @@ import SugestoesModal from "@/components/SugestoesModal";
 import TourGuiado from "@/components/TourGuiado";
 import SystemLogo from "@/components/SystemLogo";
 import { getActiveTenant, type TenantConfig } from "@/lib/tenant";
+import { useFirebaseAuth } from "@/contexts/FirebaseContext";
 
 import {
   checkLoginValid,
@@ -59,6 +60,7 @@ interface ChartDataState {
 
 const Index = () => {
   const navigate = useNavigate();
+  const { signOutGoogle } = useFirebaseAuth();
   const [isLoggedIn, setIsLoggedIn] = useState(checkLoginValid);
   const [activeTab, setActiveTab] = useState<Tab>("simulacao");
   const [adminOpen, setAdminOpen] = useState(false);
@@ -384,6 +386,7 @@ const Index = () => {
           <button
             onClick={async () => {
               setVisitorMode(false);
+              await signOutGoogle();
               await logoutSession();
               localStorage.removeItem("elite_login_date");
               setIsLoggedIn(false);

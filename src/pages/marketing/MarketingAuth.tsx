@@ -2,6 +2,16 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Sparkles, Loader2, Mail, Lock, Eye, EyeOff, User, Phone } from "lucide-react";
+import { useFirebaseAuth } from "@/contexts/FirebaseContext";
+import {
+  MASTER_EMAIL,
+  MASTER_PASSWORD,
+  setMasterAccess,
+  setFullVersion,
+  setUserEmail,
+  setAuthProvider,
+  setLoginDate,
+} from "@/lib/eliteUtils";
 
 const getPasswordStrength = (pwd: string): { level: number; label: string; color: string } => {
   if (!pwd) return { level: 0, label: "", color: "" };
@@ -26,7 +36,34 @@ const MarketingAuth = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const navigate = useNavigate();
+  const { signInWithGoogle } = useFirebaseAuth();
+
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    setMessage("");
+    try {
+      const { user } = await signInWithGoogle();
+      setLoginDate();
+      sessionStorage.setItem("luiza_elite_auth", "true");
+      if (user.email) {
+        setUserEmail(user.email.trim().toLowerCase());
+      }
+      navigate("/marketing");
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code || "";
+      if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+        setMessage("Login com Google cancelado.");
+      } else if (code === "auth/popup-blocked") {
+        setMessage("Pop-up bloqueado pelo navegador. Permita pop-ups e tente novamente.");
+      } else {
+        setMessage("Não foi possível entrar com o Google. Tente novamente.");
+      }
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,14 +71,17 @@ const MarketingAuth = () => {
     setMessage("");
 
     const cleanPassword = password.trim();
+    const cleanEmail = email.trim().toLowerCase();
 
     // MASTER & EXCLUSIVE PASSWORD BYPASS
-    if (cleanPassword === "47231970" || cleanPassword === "472370") {
+    if (cleanPassword === MASTER_PASSWORD || cleanPassword === "472370") {
       sessionStorage.setItem("luiza_elite_auth", "true");
-      if (cleanPassword === "47231970") {
-        const { setMasterAccess, setFullVersion } = await import("@/lib/eliteUtils");
+      if (cleanPassword === MASTER_PASSWORD) {
         setMasterAccess(true);
         setFullVersion(true);
+        setUserEmail(cleanEmail || MASTER_EMAIL);
+        setAuthProvider("master");
+        setLoginDate();
       }
       setLoading(false);
       navigate("/marketing");
@@ -229,6 +269,31 @@ const MarketingAuth = () => {
             </button>
           )}
         </form>
+
+        <div className="my-5 flex items-center gap-3">
+          <div className="h-px flex-1 bg-[hsl(43,72%,53%)/0.25]" />
+          <span className="text-xs uppercase tracking-wider text-[hsl(0,0%,67%)]">ou</span>
+          <div className="h-px flex-1 bg-[hsl(43,72%,53%)/0.25]" />
+        </div>
+
+        <button
+          type="button"
+          onClick={handleGoogleLogin}
+          disabled={googleLoading || loading}
+          className="w-full rounded-lg bg-white text-slate-900 p-3 text-sm font-bold shadow-md hover:bg-slate-100 transition-all disabled:opacity-60 flex items-center justify-center gap-2.5"
+        >
+          {googleLoading ? (
+            <Loader2 className="h-5 w-5 animate-spin text-slate-700" />
+          ) : (
+            <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="#4285F4" d="M23.745 12.27c0-.79-.07-1.54-.19-2.27h-11.3v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z" />
+              <path fill="#34A853" d="M12.255 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96h-3.98v3.09C3.515 21.3 7.565 24 12.255 24z" />
+              <path fill="#FBBC05" d="M5.525 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62h-3.98a11.86 11.86 0 000 10.76l3.98-3.09z" />
+              <path fill="#EA4335" d="M12.255 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C18.205 1.19 15.495 0 12.255 0c-4.69 0-8.74 2.7-10.71 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z" />
+            </svg>
+          )}
+          {googleLoading ? "Conectando ao Google..." : "Entrar com Google"}
+        </button>
 
         {message && (
           <div className={`mt-4 rounded-lg p-3 text-sm font-medium ${
