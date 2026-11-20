@@ -2,7 +2,16 @@ import { initializeApp } from "firebase/app";
 import {
   getAuth,
   GoogleAuthProvider,
+  EmailAuthProvider,
   signInWithPopup,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  linkWithCredential,
+  linkWithPopup,
+  updatePassword,
+  reload,
   signOut,
   type User,
 } from "firebase/auth";
@@ -16,9 +25,14 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import firebaseConfig from "../../firebase-applet-config.json";
-import { isMasterEmail } from "@/lib/eliteUtils";
+import { isAdminEmail } from "@/lib/eliteUtils";
 
-const app = initializeApp(firebaseConfig);
+const resolvedFirebaseConfig = {
+  ...firebaseConfig,
+  appId: "1:1098924412940:web:0e0d5042fdc703ad261e29",
+};
+
+export const app = initializeApp(resolvedFirebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 
@@ -105,8 +119,63 @@ function sanitizeString(value: string | null | undefined, maxLen: number): strin
   return trimmed.slice(0, maxLen);
 }
 
+export function validatePersonalPasswordStrength(password: string): string | null {
+  if (!password || password.length < 8) {
+    return "A senha pessoal deve ter pelo menos 8 caracteres.";
+  }
+  if (password.length > 128) {
+    return "A senha pessoal não pode ultrapassar 128 caracteres.";
+  }
+  if (!/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+    return "A senha pessoal deve conter pelo menos 1 letra e 1 número.";
+  }
+  return null;
+}
+
+export function resolveUserAuthProvider(user: User): "google" | "password" | "google+password" {
+  const providers = new Set((user.providerData || []).map((p) => p.providerId));
+  const hasGoogle = providers.has("google.com");
+  const hasPassword = providers.has("password");
+  if (hasGoogle && hasPassword) return "google+password";
+  if (hasPassword) return "password";
+  return "google";
+}
+
+export function formatFirebaseAuthError(err: unknown): string {
+  const code = (err as { code?: string })?.code || "";
+  switch (code) {
+    case "auth/invalid-email":
+      return "Informe um endereço de e-mail válido.";
+    case "auth/user-not-found":
+    case "auth/wrong-password":
+    case "auth/invalid-credential":
+      return "E-mail ou senha pessoal incorretos. Caso seja seu primeiro acesso, use 'Criar Senha Pessoal' ou 'Entrar com Google'.";
+    case "auth/email-already-in-use":
+      return "Este e-mail já possui senha cadastrada. Faça login normalmente, use 'Entrar com Google' ou clique em 'Esqueci minha senha'.";
+    case "auth/weak-password":
+      return "Senha muito fraca. Utilize no mínimo 8 caracteres com letras e números.";
+    case "auth/too-many-requests":
+      return "Muitas tentativas seguidas. Aguarde alguns instantes e tente novamente.";
+    case "auth/popup-closed-by-user":
+    case "auth/cancelled-popup-request":
+      return "Autenticação com Google cancelada.";
+    case "auth/popup-blocked":
+      return "Pop-up bloqueado pelo navegador. Libere pop-ups para continuar.";
+    case "auth/requires-recent-login":
+      return "Por segurança, saia e entre novamente antes de alterar sua senha pessoal.";
+    case "auth/provider-already-linked":
+      return "Este método de autenticação já está vinculado à sua conta.";
+    case "auth/credential-already-in-use":
+      return "Esta conta Google já está vinculada a outro acesso.";
+    case "auth/operation-not-allowed":
+      return "O provedor E-mail/Senha ainda precisa ser ativado no Firebase Console (Authentication → Sign-in method → E-mail/senha). Enquanto isso, entre com Google.";
+    default:
+      return err instanceof Error ? err.message : "Não foi possível concluir a autenticação. Tente novamente.";
+  }
+}
+
 /**
- * Synchronizes the authenticated Google user's profile to Firestore `/users/{uid}`.
+ * Synchronizes the authenticated user's profile to Firestore `/users/{uid}`.
  * Enforces all volumetric and structural constraints from firebase-blueprint.json.
  */
 export async function syncGoogleUserProfile(user: User): Promise<void> {
@@ -121,6 +190,7 @@ export async function syncGoogleUserProfile(user: User): Promise<void> {
   const userRef = doc(db, "users", uid);
   const displayName = sanitizeString(user.displayName, MAX_DISPLAY_NAME_LEN);
   const photoURL = sanitizeString(user.photoURL, MAX_PHOTO_URL_LEN);
+  const provider = resolveUserAuthProvider(user);
 
   let existsSnap = false;
   try {
@@ -131,12 +201,12 @@ export async function syncGoogleUserProfile(user: User): Promise<void> {
   }
 
   if (!existsSnap) {
-    const role: "user" | "admin" = isMasterEmail(email) ? "admin" : "user";
+    const role: "user" | "admin" = isAdminEmail(email) ? "admin" : "user";
     const createPayload: Record<string, unknown> = {
       uid,
       email,
       role,
-      provider: "google",
+      provider,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       lastLoginAt: serverTimestamp(),
@@ -152,6 +222,7 @@ export async function syncGoogleUserProfile(user: User): Promise<void> {
   } else {
     const updatePayload: Record<string, unknown> = {
       email,
+      provider,
       updatedAt: serverTimestamp(),
       lastLoginAt: serverTimestamp(),
     };
@@ -166,20 +237,88 @@ export async function syncGoogleUserProfile(user: User): Promise<void> {
   }
 }
 
+export const syncAuthenticatedUserProfile = syncGoogleUserProfile;
+
 export async function signInWithGooglePopup(): Promise<{ user: User; isMaster: boolean }> {
   const credential = await signInWithPopup(auth, googleProvider);
   const user = credential.user;
   const email = (user.email || "").trim().toLowerCase();
-  const isMaster = Boolean(user.emailVerified && isMasterEmail(email));
-
-  // Sync profile in Firestore (non-blocking if user lacks network/quota after auth)
-  try {
-    await syncGoogleUserProfile(user);
-  } catch (err) {
-    console.warn("[Firebase] Profile sync notice:", err);
-  }
+  const isMaster = Boolean(user.emailVerified && isAdminEmail(email));
 
   return { user, isMaster };
+}
+
+export async function signInWithPersonalPassword(email: string, password: string): Promise<User> {
+  const cleanEmail = email.trim().toLowerCase().slice(0, MAX_EMAIL_LEN);
+  const credential = await signInWithEmailAndPassword(auth, cleanEmail, password);
+  return credential.user;
+}
+
+export async function registerPersonalPassword(email: string, password: string): Promise<User> {
+  const cleanEmail = email.trim().toLowerCase().slice(0, MAX_EMAIL_LEN);
+  const strengthErr = validatePersonalPasswordStrength(password);
+  if (strengthErr) throw new Error(strengthErr);
+
+  const credential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+  const user = credential.user;
+  if (!user.emailVerified) {
+    try {
+      await sendEmailVerification(user);
+    } catch (err) {
+      console.warn("[Firebase] Verification email notice:", err);
+    }
+  }
+  return user;
+}
+
+export async function linkOrUpdatePersonalPassword(password: string): Promise<User> {
+  const currentUser = auth.currentUser;
+  if (!currentUser || !currentUser.email) {
+    throw new Error("Conecte-se primeiro com a conta do contrato para cadastrar ou alterar sua senha pessoal.");
+  }
+  const strengthErr = validatePersonalPasswordStrength(password);
+  if (strengthErr) throw new Error(strengthErr);
+
+  const hasPasswordProvider = currentUser.providerData.some((p) => p.providerId === "password");
+  if (hasPasswordProvider) {
+    await updatePassword(currentUser, password);
+    return currentUser;
+  }
+
+  const emailCredential = EmailAuthProvider.credential(currentUser.email, password);
+  const result = await linkWithCredential(currentUser, emailCredential);
+  return result.user;
+}
+
+export async function linkGoogleAccountToCurrentUser(): Promise<User> {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    throw new Error("Nenhuma sessão ativa para vincular a conta Google.");
+  }
+  const result = await linkWithPopup(currentUser, googleProvider);
+  return result.user;
+}
+
+export async function sendPersonalPasswordReset(email: string): Promise<void> {
+  const cleanEmail = email.trim().toLowerCase().slice(0, MAX_EMAIL_LEN);
+  if (!cleanEmail || !cleanEmail.includes("@")) {
+    throw new Error("Informe o e-mail vinculado ao contrato.");
+  }
+  await sendPasswordResetEmail(auth, cleanEmail);
+}
+
+export async function resendVerificationEmail(): Promise<void> {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    throw new Error("Faça login com seu e-mail e senha para reenviar a confirmação.");
+  }
+  await sendEmailVerification(currentUser);
+}
+
+export async function reloadCurrentUser(): Promise<User | null> {
+  if (!auth.currentUser) return null;
+  await reload(auth.currentUser);
+  return auth.currentUser;
 }
 
 export async function signOutFirebase(): Promise<void> {

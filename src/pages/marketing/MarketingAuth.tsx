@@ -44,7 +44,11 @@ const MarketingAuth = () => {
     setGoogleLoading(true);
     setMessage("");
     try {
-      const { user } = await signInWithGoogle();
+      const { user, authorization } = await signInWithGoogle();
+      if (!authorization.authorized) {
+        setMessage(authorization.message);
+        return;
+      }
       setLoginDate();
       sessionStorage.setItem("luiza_elite_auth", "true");
       if (user.email) {

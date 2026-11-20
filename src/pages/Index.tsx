@@ -11,6 +11,8 @@ import {
   Megaphone,
   Bot,
   Lightbulb,
+  ShieldCheck,
+  KeyRound,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import CalculadoraPopup from "@/components/CalculadoraPopup";
@@ -25,6 +27,8 @@ import PainelComercial from "@/components/PainelComercial";
 import SugestoesModal from "@/components/SugestoesModal";
 import TourGuiado from "@/components/TourGuiado";
 import SystemLogo from "@/components/SystemLogo";
+import AccessDatabasePanel from "@/components/AccessDatabasePanel";
+import PersonalSecurityModal from "@/components/PersonalSecurityModal";
 import { getActiveTenant, type TenantConfig } from "@/lib/tenant";
 import { useFirebaseAuth } from "@/contexts/FirebaseContext";
 
@@ -41,6 +45,7 @@ import {
   isVisitorMode,
   setVisitorMode,
   checkVisitorAction,
+  isMasterAccess,
 } from "@/lib/eliteUtils";
 
 type Tab = "simulacao" | "crm" | "prosoluto" | "gestao" | "dashboard";
@@ -60,12 +65,20 @@ interface ChartDataState {
 
 const Index = () => {
   const navigate = useNavigate();
-  const { signOutGoogle } = useFirebaseAuth();
+  const { signOutGoogle, isGoogleMaster, accessAuthorization } = useFirebaseAuth();
   const [isLoggedIn, setIsLoggedIn] = useState(checkLoginValid);
   const [activeTab, setActiveTab] = useState<Tab>("simulacao");
   const [adminOpen, setAdminOpen] = useState(false);
+  const [accessDbOpen, setAccessDbOpen] = useState(false);
+  const [securityModalOpen, setSecurityModalOpen] = useState(false);
   const [painelComercialOpen, setPainelComercialOpen] = useState(false);
   const [sugestoesOpen, setSugestoesOpen] = useState(false);
+  const canManageDatabases = Boolean(
+    isMasterAccess() ||
+      isGoogleMaster ||
+      (accessAuthorization?.authorized &&
+        (accessAuthorization.role === "master" || accessAuthorization.role === "adm")),
+  );
   const [adminData, setAdminData] = useState<AdminData>(getAdminData());
   const [chartData, setChartData] = useState<ChartDataState>({
     financiamento: 0,
@@ -306,11 +319,32 @@ const Index = () => {
           </button>
           {!isVisitor && (
             <button
+              onClick={() => setSecurityModalOpen(true)}
+              className="px-2 py-1.5 rounded-lg border border-gold/30 text-gold/85 hover:text-gold hover:bg-gold/10 transition-colors flex items-center gap-1.5 text-[10px] font-mono font-bold"
+              title="Minha Conta, ID Próprio e Senha Pessoal"
+            >
+              <KeyRound className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">
+                {accessAuthorization?.codigoId || "Senha"}
+              </span>
+            </button>
+          )}
+          {!isVisitor && (
+            <button
               onClick={() => setPainelComercialOpen(true)}
               className="p-2 text-gold/60 hover:text-gold transition-colors"
               title="Painel Comercial"
             >
               <Briefcase className="w-5 h-5" />
+            </button>
+          )}
+          {canManageDatabases && (
+            <button
+              onClick={() => setAccessDbOpen(true)}
+              className="p-2 text-gold hover:text-gold-bright transition-colors"
+              title="Banco de Dados Corretor Elite & Administrativo"
+            >
+              <ShieldCheck className="w-5 h-5" />
             </button>
           )}
           <button
@@ -412,6 +446,8 @@ const Index = () => {
       {calcOpen && <CalculadoraPopup onClose={() => setCalcOpen(false)} />}
       <PainelComercial isOpen={painelComercialOpen} onClose={() => setPainelComercialOpen(false)} />
       <SugestoesModal isOpen={sugestoesOpen} onClose={() => setSugestoesOpen(false)} />
+      <AccessDatabasePanel isOpen={accessDbOpen} onClose={() => setAccessDbOpen(false)} />
+      <PersonalSecurityModal isOpen={securityModalOpen} onClose={() => setSecurityModalOpen(false)} />
 
       {/* LUIZA DENTRO DO SIMULADOR */}
     </div>

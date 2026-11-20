@@ -24,6 +24,10 @@ service cloud.firestore {
       return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
+    function isValidCode(code) {
+      return code is string && code.size() >= 1 && code.size() <= 32 && code.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
     function incoming() {
       return request.resource.data;
     }
@@ -32,13 +36,46 @@ service cloud.firestore {
       return resource.data;
     }
 
-    // Verified Admin RBAC check (Email Spoofing guarded by email_verified == true)
-    function isAdmin() {
+    // Zero-lookup verified bootstrap admin check (safe inside allow list)
+    function isBootstrapAdmin() {
       return isVerified() && (
         request.auth.token.email == 'lourenco.consultorimob@gmail.com' ||
-        request.auth.token.email == 'simuladorcorretorelite4.0@gmail.com' ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        request.auth.token.email == 'simuladorcorretorelite4.0@gmail.com'
       );
+    }
+
+    // Verified Admin RBAC check (Email Spoofing guarded by email_verified == true)
+    function isAdmin() {
+      return isBootstrapAdmin() || (
+        isVerified() && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Pillar 1 Master Gate: verifies the caller is the active, payment-confirmed Real Estate Agency owner
+    function isActiveAgencyOwner(imobId) {
+      return isVerified()
+        && isValidId(imobId)
+        && exists(/databases/$(database)/documents/administrativo/$(imobId))
+        && get(/databases/$(database)/documents/administrativo/$(imobId)).data.tipo == 'imobiliaria'
+        && get(/databases/$(database)/documents/administrativo/$(imobId)).data.email == request.auth.token.email
+        && get(/databases/$(database)/documents/administrativo/$(imobId)).data.autorizado == true
+        && get(/databases/$(database)/documents/administrativo/$(imobId)).data.pagamentoConfirmado == true
+        && get(/databases/$(database)/documents/administrativo/$(imobId)).data.status == 'ativo';
+    }
+
+    // Pillar 1 Master Gate: verifies the caller is an active, payment-confirmed Broker/Client
+    function isActiveCorretorOwner(corretorId, expectedTenantId) {
+      return isVerified()
+        && isValidId(corretorId)
+        && exists(/databases/$(database)/documents/corretor_elite/$(corretorId))
+        && get(/databases/$(database)/documents/corretor_elite/$(corretorId)).data.email == request.auth.token.email
+        && get(/databases/$(database)/documents/corretor_elite/$(corretorId)).data.autorizado == true
+        && get(/databases/$(database)/documents/corretor_elite/$(corretorId)).data.pagamentoConfirmado == true
+        && get(/databases/$(database)/documents/corretor_elite/$(corretorId)).data.status == 'ativo'
+        && (
+          !('tenantId' in get(/databases/$(database)/documents/corretor_elite/$(corretorId)).data)
+          || get(/databases/$(database)/documents/corretor_elite/$(corretorId)).data.tenantId == expectedTenantId
+        );
     }
 
     // === Validation Blueprints (synchronized verbatim with firebase-blueprint.json) ===
@@ -50,7 +87,7 @@ service cloud.firestore {
         && (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 120))
         && (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 512))
         && data.role is string && data.role.size() <= 16 && data.role in ['user', 'admin']
-        && data.provider is string && data.provider.size() <= 32 && data.provider == 'google'
+        && data.provider is string && data.provider.size() <= 32 && data.provider in ['google', 'password', 'google+password']
         && data.createdAt is timestamp
         && data.updatedAt is timestamp
         && data.lastLoginAt is timestamp;
@@ -65,15 +102,130 @@ service cloud.firestore {
         && data.createdAt is timestamp;
     }
 
+    function isValidCorretorElite(data) {
+      return data.keys().hasAll([
+          'id', 'nome', 'email', 'tipo', 'plano',
+          'pagamentoConfirmado', 'origemPagamento', 'autorizado',
+          'status', 'createdBy', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'codigoCorretor', 'tenantId', 'tipoConta', 'papel',
+          'nome', 'email', 'tipo', 'modalidade', 'cpfCnpj', 'creci', 'telefone',
+          'imobiliariaId', 'imobiliariaCodigo', 'imobiliariaNome', 'imobiliariaEmail',
+          'googleSubId', 'senhaPessoalConfigurada', 'pinHash',
+          'plano', 'pagamentoConfirmado', 'origemPagamento', 'comprovanteRef',
+          'autorizado', 'status', 'validadeAte', 'observacoes',
+          'createdBy', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && (!('codigoCorretor' in data) || isValidCode(data.codigoCorretor))
+        && (!('tenantId' in data) || isValidId(data.tenantId))
+        && (!('tipoConta' in data) || (data.tipoConta is string && data.tipoConta.size() <= 24 && data.tipoConta in ['autonomo', 'imobiliaria']))
+        && (!('papel' in data) || (data.papel is string && data.papel.size() <= 24 && data.papel in ['corretor', 'cliente']))
+        && data.nome is string && data.nome.size() >= 2 && data.nome.size() <= 120
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 254
+        && data.tipo is string && data.tipo.size() <= 24 && data.tipo in ['corretor', 'cliente']
+        && (!('modalidade' in data) || (data.modalidade is string && data.modalidade.size() <= 24 && data.modalidade in ['individual', 'imobiliaria']))
+        && (!('cpfCnpj' in data) || (data.cpfCnpj is string && data.cpfCnpj.size() <= 20))
+        && (!('creci' in data) || (data.creci is string && data.creci.size() <= 32))
+        && (!('telefone' in data) || (data.telefone is string && data.telefone.size() <= 30))
+        && (!('imobiliariaId' in data) || isValidId(data.imobiliariaId))
+        && (!('imobiliariaCodigo' in data) || isValidCode(data.imobiliariaCodigo))
+        && (!('imobiliariaNome' in data) || (data.imobiliariaNome is string && data.imobiliariaNome.size() <= 120))
+        && (!('imobiliariaEmail' in data) || (data.imobiliariaEmail is string && data.imobiliariaEmail.size() >= 3 && data.imobiliariaEmail.size() <= 254))
+        && (!('googleSubId' in data) || isValidId(data.googleSubId))
+        && (!('senhaPessoalConfigurada' in data) || data.senhaPessoalConfigurada is bool)
+        && (!('pinHash' in data) || (data.pinHash is string && data.pinHash.size() <= 64))
+        && data.plano is string && data.plano.size() <= 32
+        && data.plano in ['mensal', 'semestral', 'anual', 'anual_completo', 'imobiliaria']
+        && data.pagamentoConfirmado is bool
+        && data.origemPagamento is string && data.origemPagamento.size() >= 3 && data.origemPagamento.size() <= 120
+        && (!('comprovanteRef' in data) || (data.comprovanteRef is string && data.comprovanteRef.size() <= 120))
+        && data.autorizado is bool
+        && data.status is string && data.status.size() <= 24
+        && data.status in ['ativo', 'pendente_pagamento', 'bloqueado', 'expirado']
+        && (!('validadeAte' in data) || (data.validadeAte is string && data.validadeAte.size() <= 32))
+        && (!('observacoes' in data) || (data.observacoes is string && data.observacoes.size() <= 500))
+        && isValidId(data.createdBy)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAdministrativo(data) {
+      return data.keys().hasAll([
+          'id', 'tipo', 'nome', 'email',
+          'pagamentoConfirmado', 'autorizado', 'status',
+          'createdBy', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'tenantId', 'codigoCadastro', 'tipo', 'tipoConta', 'papel',
+          'nome', 'email', 'googleSubId', 'senhaPessoalConfigurada',
+          'plano', 'planoLabel', 'senhaAcesso',
+          'cpfCnpj', 'creciJuridico', 'responsavel', 'telefone', 'cidade',
+          'limiteCorretores', 'pagamentoConfirmado', 'autorizado', 'status',
+          'validadeAte', 'observacoes', 'createdBy', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && (!('tenantId' in data) || isValidId(data.tenantId))
+        && (!('codigoCadastro' in data) || isValidCode(data.codigoCadastro))
+        && data.tipo is string && data.tipo.size() <= 24 && data.tipo in ['adm', 'imobiliaria']
+        && (!('tipoConta' in data) || (data.tipoConta is string && data.tipoConta.size() <= 24 && data.tipoConta in ['adm', 'imobiliaria']))
+        && (!('papel' in data) || (data.papel is string && data.papel.size() <= 24 && data.papel in ['master_adm', 'admin_imobiliaria']))
+        && data.nome is string && data.nome.size() >= 2 && data.nome.size() <= 120
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 254
+        && (!('googleSubId' in data) || isValidId(data.googleSubId))
+        && (!('senhaPessoalConfigurada' in data) || data.senhaPessoalConfigurada is bool)
+        && (!('plano' in data) || (data.plano is string && data.plano.size() <= 32 && data.plano in ['plano01', 'plano02', 'plano03', 'plano04', 'plano05', 'master']))
+        && (!('planoLabel' in data) || (data.planoLabel is string && data.planoLabel.size() <= 80))
+        && (!('senhaAcesso' in data) || (data.senhaAcesso is string && data.senhaAcesso.size() <= 32))
+        && (!('cpfCnpj' in data) || (data.cpfCnpj is string && data.cpfCnpj.size() <= 20))
+        && (!('creciJuridico' in data) || (data.creciJuridico is string && data.creciJuridico.size() <= 32))
+        && (!('responsavel' in data) || (data.responsavel is string && data.responsavel.size() <= 120))
+        && (!('telefone' in data) || (data.telefone is string && data.telefone.size() <= 30))
+        && (!('cidade' in data) || (data.cidade is string && data.cidade.size() <= 80))
+        && (!('limiteCorretores' in data) || (data.limiteCorretores is int && data.limiteCorretores >= 0 && data.limiteCorretores <= 10000))
+        && data.pagamentoConfirmado is bool
+        && data.autorizado is bool
+        && data.status is string && data.status.size() <= 24
+        && data.status in ['ativo', 'pendente_pagamento', 'bloqueado', 'expirado']
+        && (!('validadeAte' in data) || (data.validadeAte is string && data.validadeAte.size() <= 32))
+        && (!('observacoes' in data) || (data.observacoes is string && data.observacoes.size() <= 500))
+        && isValidId(data.createdBy)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidTenantRecord(data) {
+      return data.keys().hasAll([
+          'id', 'tenantId', 'corretorId', 'ownerUid', 'corretorEmail',
+          'tipoRegistro', 'titulo', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'tenantId', 'corretorId', 'codigoCorretor', 'ownerUid',
+          'corretorEmail', 'imobiliariaEmail', 'tipoRegistro', 'titulo',
+          'clienteNome', 'clienteTelefone', 'resumo', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.tenantId)
+        && isValidId(data.corretorId)
+        && (!('codigoCorretor' in data) || isValidCode(data.codigoCorretor))
+        && isValidId(data.ownerUid)
+        && data.corretorEmail is string && data.corretorEmail.size() >= 3 && data.corretorEmail.size() <= 254
+        && (!('imobiliariaEmail' in data) || (data.imobiliariaEmail is string && data.imobiliariaEmail.size() >= 3 && data.imobiliariaEmail.size() <= 254))
+        && data.tipoRegistro is string && data.tipoRegistro.size() <= 24 && data.tipoRegistro in ['simulacao', 'lead', 'proposta']
+        && data.titulo is string && data.titulo.size() >= 1 && data.titulo.size() <= 160
+        && (!('clienteNome' in data) || (data.clienteNome is string && data.clienteNome.size() <= 120))
+        && (!('clienteTelefone' in data) || (data.clienteTelefone is string && data.clienteTelefone.size() <= 30))
+        && (!('resumo' in data) || (data.resumo is string && data.resumo.size() <= 1000))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
     // === Collection: /users/{userId} (PII Isolated) ===
     match /users/{userId} {
-      // PII Protection: only owner or verified admin can read individual user documents
       allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
-
-      // Pillar 8: Secure list query enforcing resource.data check with zero DB lookups
       allow list: if isSignedIn() && resource.data.uid == request.auth.uid;
 
-      // Create: verified user creating own profile (no self-assigned admin unless already verified admin)
       allow create: if isVerified()
         && isValidId(userId)
         && isValidUserProfile(incoming())
@@ -85,28 +237,24 @@ service cloud.firestore {
         && incoming().lastLoginAt == request.time
         && (incoming().role == 'user' || isAdmin());
 
-      // Action-Based Update: Validation helper wraps entire update logic
       allow update: if isVerified()
         && isValidId(userId)
         && isValidUserProfile(incoming())
         && incoming().uid == existing().uid
-        && incoming().provider == existing().provider
         && incoming().createdAt == existing().createdAt
         && incoming().updatedAt == request.time
         && (
-          // Action 1: Owner syncing own Google profile/login metadata (cannot alter role)
           (
             isOwner(userId)
             && incoming().role == existing().role
             && incoming().email == request.auth.token.email
             && incoming().lastLoginAt == request.time
-            && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'displayName', 'photoURL', 'updatedAt', 'lastLoginAt'])
+            && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'displayName', 'photoURL', 'provider', 'updatedAt', 'lastLoginAt'])
           )
           ||
-          // Action 2: Verified Admin updating role or metadata
           (
             isAdmin()
-            && incoming().diff(existing()).affectedKeys().hasOnly(['role', 'displayName', 'photoURL', 'updatedAt', 'lastLoginAt'])
+            && incoming().diff(existing()).affectedKeys().hasOnly(['role', 'displayName', 'photoURL', 'provider', 'updatedAt', 'lastLoginAt'])
           )
         );
 
@@ -133,6 +281,234 @@ service cloud.firestore {
         && isAdmin();
 
       allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    // === Collection: /corretor_elite/{recordId} (Multi-Tenant Isolated Brokers & Clients) ===
+    match /corretor_elite/{recordId} {
+      // Strict Multi-Tenant PII Isolation:
+      // - Broker sees ONLY own doc (email == token.email)
+      // - Agency sees ONLY its own linked brokers (imobiliariaEmail == token.email)
+      // - Zero cross-agency or cross-broker access
+      allow get: if isValidId(recordId) && (
+        (isVerified() && resource.data.email == request.auth.token.email) ||
+        (isVerified() && 'imobiliariaEmail' in resource.data && resource.data.imobiliariaEmail == request.auth.token.email) ||
+        isAdmin()
+      );
+
+      // Pillar 8: Zero DB lookups inside allow list
+      allow list: if isBootstrapAdmin()
+        || (isVerified() && resource.data.email == request.auth.token.email)
+        || (isVerified() && resource.data.imobiliariaEmail == request.auth.token.email);
+
+      // Tier 1 (Verified Admin) OR Tier 2 (Active, paid Real Estate Agency registering its own linked broker)
+      allow create: if isVerified()
+        && isValidId(recordId)
+        && isValidCorretorElite(incoming())
+        && incoming().id == recordId
+        && incoming().createdBy == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          (
+            (!('imobiliariaId' in incoming()) || exists(/databases/$(database)/documents/administrativo/$(incoming().imobiliariaId)))
+            && isAdmin()
+          )
+          ||
+          (
+            'imobiliariaId' in incoming()
+            && 'imobiliariaEmail' in incoming()
+            && 'modalidade' in incoming()
+            && 'tenantId' in incoming()
+            && incoming().modalidade == 'imobiliaria'
+            && incoming().tipo == 'corretor'
+            && incoming().plano == 'imobiliaria'
+            && incoming().tenantId == incoming().imobiliariaId
+            && incoming().imobiliariaEmail == request.auth.token.email
+            && isActiveAgencyOwner(incoming().imobiliariaId)
+          )
+        );
+
+      // Action-Based Update: Validation blueprint wraps entire update logic
+      allow update: if isVerified()
+        && isValidId(recordId)
+        && isValidCorretorElite(incoming())
+        && incoming().id == existing().id
+        && incoming().email == existing().email
+        && incoming().createdBy == existing().createdBy
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Tier 1: Verified Admin actions
+          (
+            (!('imobiliariaId' in incoming()) || exists(/databases/$(database)/documents/administrativo/$(incoming().imobiliariaId)))
+            && isAdmin()
+            && (
+              incoming().diff(existing()).affectedKeys().hasOnly([
+                'pagamentoConfirmado', 'autorizado', 'status', 'comprovanteRef', 'validadeAte', 'updatedAt'
+              ])
+              ||
+              incoming().diff(existing()).affectedKeys().hasOnly([
+                'codigoCorretor', 'tenantId', 'tipoConta', 'papel',
+                'nome', 'tipo', 'modalidade', 'cpfCnpj', 'creci', 'telefone',
+                'imobiliariaId', 'imobiliariaCodigo', 'imobiliariaNome', 'imobiliariaEmail', 'pinHash',
+                'plano', 'pagamentoConfirmado', 'origemPagamento', 'comprovanteRef',
+                'autorizado', 'status', 'validadeAte', 'observacoes', 'updatedAt'
+              ])
+            )
+          )
+          ||
+          // Tier 2: Active paid Agency toggling status of its own linked broker
+          (
+            'imobiliariaId' in existing()
+            && incoming().imobiliariaId == existing().imobiliariaId
+            && (!('tenantId' in existing()) || incoming().tenantId == existing().tenantId)
+            && incoming().diff(existing()).affectedKeys().hasOnly(['autorizado', 'status', 'updatedAt'])
+            && isActiveAgencyOwner(existing().imobiliariaId)
+          )
+          ||
+          // Tier 3: Broker self-binding Firebase Auth UID & personal password flag on own verified contract
+          (
+            existing().email == request.auth.token.email
+            && existing().autorizado == true
+            && existing().pagamentoConfirmado == true
+            && existing().status == 'ativo'
+            && (!('googleSubId' in incoming()) || incoming().googleSubId == request.auth.uid)
+            && incoming().diff(existing()).affectedKeys().hasOnly(['googleSubId', 'senhaPessoalConfigurada', 'updatedAt'])
+          )
+        );
+
+      allow delete: if isValidId(recordId) && (
+        isAdmin() ||
+        ('imobiliariaId' in resource.data && isActiveAgencyOwner(resource.data.imobiliariaId))
+      );
+    }
+
+    // === Collection: /administrativo/{recordId} (Paying Agencies & Platform Admins) ===
+    match /administrativo/{recordId} {
+      // Strict Multi-Tenant PII Isolation: an agency ONLY sees its own contract
+      allow get: if isValidId(recordId) && (
+        (isVerified() && resource.data.email == request.auth.token.email) ||
+        isAdmin()
+      );
+
+      // Pillar 8: Zero DB lookups inside allow list
+      allow list: if isBootstrapAdmin()
+        || (isVerified() && resource.data.email == request.auth.token.email);
+
+      // Only verified admins can register ADMs and Real Estate Agencies
+      allow create: if isVerified()
+        && isValidId(recordId)
+        && isValidAdministrativo(incoming())
+        && incoming().id == recordId
+        && incoming().createdBy == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && isAdmin();
+
+      // Action-Based Update: Validation blueprint wraps entire update logic
+      allow update: if isVerified()
+        && isValidId(recordId)
+        && isValidAdministrativo(incoming())
+        && incoming().id == existing().id
+        && incoming().email == existing().email
+        && incoming().createdBy == existing().createdBy
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (
+            isAdmin()
+            && (
+              incoming().diff(existing()).affectedKeys().hasOnly([
+                'pagamentoConfirmado', 'autorizado', 'status', 'validadeAte', 'updatedAt'
+              ])
+              ||
+              incoming().diff(existing()).affectedKeys().hasOnly([
+                'tenantId', 'codigoCadastro', 'tipo', 'tipoConta', 'papel',
+                'nome', 'plano', 'planoLabel', 'senhaAcesso',
+                'cpfCnpj', 'creciJuridico', 'responsavel', 'telefone', 'cidade',
+                'limiteCorretores', 'pagamentoConfirmado', 'autorizado', 'status',
+                'validadeAte', 'observacoes', 'updatedAt'
+              ])
+            )
+          )
+          ||
+          // Tier 2: Agency/ADM owner self-binding Firebase Auth UID & personal password flag
+          (
+            existing().email == request.auth.token.email
+            && existing().autorizado == true
+            && existing().status == 'ativo'
+            && (existing().tipo == 'adm' || existing().pagamentoConfirmado == true)
+            && (!('googleSubId' in incoming()) || incoming().googleSubId == request.auth.uid)
+            && incoming().diff(existing()).affectedKeys().hasOnly(['googleSubId', 'senhaPessoalConfigurada', 'updatedAt'])
+          )
+        );
+
+      allow delete: if isValidId(recordId) && isAdmin();
+    }
+
+    // === Collection: /tenant_records/{recordId} (Multi-Tenant Isolated Business Data) ===
+    match /tenant_records/{recordId} {
+      // Agency admin sees all records of its tenant; Broker sees ONLY own records; Zero cross-tenant leakage
+      allow get: if isValidId(recordId) && (
+        (isVerified() && resource.data.ownerUid == request.auth.uid && resource.data.corretorEmail == request.auth.token.email) ||
+        (isVerified() && 'imobiliariaEmail' in resource.data && resource.data.imobiliariaEmail == request.auth.token.email) ||
+        isAdmin()
+      );
+
+      // Pillar 8: Zero DB lookups inside allow list
+      allow list: if isBootstrapAdmin()
+        || (isVerified() && resource.data.ownerUid == request.auth.uid && resource.data.corretorEmail == request.auth.token.email)
+        || (isVerified() && resource.data.imobiliariaEmail == request.auth.token.email);
+
+      allow create: if isVerified()
+        && isValidId(recordId)
+        && isValidTenantRecord(incoming())
+        && incoming().id == recordId
+        && incoming().ownerUid == request.auth.uid
+        && incoming().corretorEmail == request.auth.token.email
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin()
+          || (
+            isActiveAgencyOwner(incoming().tenantId)
+            && incoming().corretorId == incoming().tenantId
+            && (!('imobiliariaEmail' in incoming()) || incoming().imobiliariaEmail == request.auth.token.email)
+          )
+          || (
+            isActiveCorretorOwner(incoming().corretorId, incoming().tenantId)
+            && (
+              !('imobiliariaEmail' in incoming())
+              || (
+                'imobiliariaEmail' in get(/databases/$(database)/documents/corretor_elite/$(incoming().corretorId)).data
+                && incoming().imobiliariaEmail == get(/databases/$(database)/documents/corretor_elite/$(incoming().corretorId)).data.imobiliariaEmail
+              )
+            )
+          )
+        );
+
+      allow update: if isVerified()
+        && isValidId(recordId)
+        && isValidTenantRecord(incoming())
+        && incoming().id == existing().id
+        && incoming().tenantId == existing().tenantId
+        && incoming().corretorId == existing().corretorId
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().corretorEmail == existing().corretorEmail
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['titulo', 'clienteNome', 'clienteTelefone', 'resumo', 'updatedAt'])
+        && (
+          isAdmin()
+          || (existing().ownerUid == request.auth.uid && isActiveCorretorOwner(existing().corretorId, existing().tenantId))
+          || isActiveAgencyOwner(existing().tenantId)
+        );
+
+      allow delete: if isValidId(recordId) && (
+        isAdmin()
+        || (isVerified() && resource.data.ownerUid == request.auth.uid && isActiveCorretorOwner(resource.data.corretorId, resource.data.tenantId))
+        || isActiveAgencyOwner(resource.data.tenantId)
+      );
     }
   }
 }

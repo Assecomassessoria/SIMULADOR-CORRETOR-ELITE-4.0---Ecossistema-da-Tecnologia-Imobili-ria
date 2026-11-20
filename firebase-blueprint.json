@@ -2,7 +2,7 @@
   "entities": {
     "UserProfile": {
       "title": "UserProfile",
-      "description": "Authenticated user profile synchronized from Google Authentication (Firebase Auth).",
+      "description": "Authenticated user profile synchronized from Firebase Auth (Google OAuth and/or Email+Password).",
       "type": "object",
       "properties": {
         "uid": {
@@ -15,18 +15,18 @@
         "email": {
           "type": "string",
           "format": "email",
-          "description": "Verified Google account email address (PII - owner/admin only).",
+          "description": "Verified account email address (PII - owner/admin only).",
           "minLength": 3,
           "maxLength": 254
         },
         "displayName": {
           "type": "string",
-          "description": "Display name from Google account.",
+          "description": "Display name from auth provider.",
           "maxLength": 120
         },
         "photoURL": {
           "type": "string",
-          "description": "Profile picture URL from Google account.",
+          "description": "Profile picture URL from auth provider.",
           "maxLength": 512
         },
         "role": {
@@ -37,8 +37,8 @@
         },
         "provider": {
           "type": "string",
-          "enum": ["google"],
-          "description": "Authentication provider identifier.",
+          "enum": ["google", "password", "google+password"],
+          "description": "Authentication provider(s) linked to this account.",
           "maxLength": 32
         },
         "createdAt": {
@@ -92,6 +92,472 @@
         }
       },
       "required": ["uid", "email", "grantedBy", "createdAt"]
+    },
+    "CorretorEliteRecord": {
+      "title": "CorretorEliteRecord",
+      "description": "Multi-tenant isolated broker or client record — either autonomous (own tenantId == id) or linked to a paying Real Estate Agency (tenantId == imobiliariaId) — each with a unique codigoCorretor (CORR-XXXX) and hybrid password/Google login.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Deterministic SHA-256 hex prefix of normalized lowercase email matching document ID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "codigoCorretor": {
+          "type": "string",
+          "description": "Unique human-readable broker ID (e.g., CORR-7392).",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "tenantId": {
+          "type": "string",
+          "description": "Multi-tenant isolation key: equals own id for autonomous brokers, or imobiliariaId for agency-linked brokers.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "tipoConta": {
+          "type": "string",
+          "enum": ["autonomo", "imobiliaria"],
+          "description": "Paying tenant account classification.",
+          "maxLength": 24
+        },
+        "papel": {
+          "type": "string",
+          "enum": ["corretor", "cliente"],
+          "description": "User role within the tenant.",
+          "maxLength": 24
+        },
+        "nome": {
+          "type": "string",
+          "description": "Full name of the registered broker or client.",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Normalized lowercase authorized contract email address (PII).",
+          "minLength": 3,
+          "maxLength": 254
+        },
+        "tipo": {
+          "type": "string",
+          "enum": ["corretor", "cliente"],
+          "description": "Registered account profile type.",
+          "maxLength": 24
+        },
+        "modalidade": {
+          "type": "string",
+          "enum": ["individual", "imobiliaria"],
+          "description": "Whether the broker/client is individual (autonomous tenant) or linked to a paying real estate agency.",
+          "maxLength": 24
+        },
+        "cpfCnpj": {
+          "type": "string",
+          "description": "CPF or CNPJ document number (PII).",
+          "maxLength": 20
+        },
+        "creci": {
+          "type": "string",
+          "description": "Broker CRECI registration number.",
+          "maxLength": 32
+        },
+        "telefone": {
+          "type": "string",
+          "description": "WhatsApp or phone contact (PII).",
+          "maxLength": 30
+        },
+        "imobiliariaId": {
+          "type": "string",
+          "description": "Reference document ID to a registered agency in /administrativo.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "imobiliariaCodigo": {
+          "type": "string",
+          "description": "Human-readable agency registration ID (e.g., IMOB-4821).",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "imobiliariaNome": {
+          "type": "string",
+          "description": "Display name of the linked real estate agency.",
+          "maxLength": 120
+        },
+        "imobiliariaEmail": {
+          "type": "string",
+          "format": "email",
+          "description": "Normalized email of the linked real estate agency for zero-lookup secure agency listing.",
+          "minLength": 3,
+          "maxLength": 254
+        },
+        "googleSubId": {
+          "type": "string",
+          "description": "Bound Firebase Auth UID recorded when the broker signs in with verified email/Google.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "senhaPessoalConfigurada": {
+          "type": "boolean",
+          "description": "Indicates whether the user has configured a personal password via Firebase Auth."
+        },
+        "pinHash": {
+          "type": "string",
+          "description": "Optional SHA-256 hex hash of the 6-digit broker PIN.",
+          "maxLength": 64
+        },
+        "plano": {
+          "type": "string",
+          "enum": ["mensal", "semestral", "anual", "anual_completo", "imobiliaria"],
+          "description": "Purchased subscription plan.",
+          "maxLength": 32
+        },
+        "pagamentoConfirmado": {
+          "type": "boolean",
+          "description": "Must be true (confirmed after payment at simuladorcorretorelite.com.br) to unlock service access."
+        },
+        "origemPagamento": {
+          "type": "string",
+          "description": "Payment origin reference (default: simuladorcorretorelite.com.br).",
+          "minLength": 3,
+          "maxLength": 120
+        },
+        "comprovanteRef": {
+          "type": "string",
+          "description": "Order ID, PIX receipt code, or payment transaction reference.",
+          "maxLength": 120
+        },
+        "autorizado": {
+          "type": "boolean",
+          "description": "Explicit administrative authorization flag."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["ativo", "pendente_pagamento", "bloqueado", "expirado"],
+          "description": "Current access lifecycle status.",
+          "maxLength": 24
+        },
+        "validadeAte": {
+          "type": "string",
+          "description": "Optional license expiration date in YYYY-MM-DD format.",
+          "maxLength": 32
+        },
+        "observacoes": {
+          "type": "string",
+          "description": "Internal administrative notes.",
+          "maxLength": 500
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "Firebase Auth UID of the administrator or agency owner who registered this record (immutable).",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of record creation (immutable)."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last modification."
+        }
+      },
+      "required": [
+        "id",
+        "nome",
+        "email",
+        "tipo",
+        "plano",
+        "pagamentoConfirmado",
+        "origemPagamento",
+        "autorizado",
+        "status",
+        "createdBy",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AdministrativoRecord": {
+      "title": "AdministrativoRecord",
+      "description": "Paying Real Estate Agency tenant (Imobiliária) or Platform Administrator (ADM) record with unique registration ID, tenantId, contracted plan, and hybrid auth binding.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Deterministic SHA-256 hex prefix of normalized lowercase email matching document ID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "tenantId": {
+          "type": "string",
+          "description": "Tenant isolation identifier (equals own id for real estate agencies).",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "codigoCadastro": {
+          "type": "string",
+          "description": "Human-readable registration ID for the agency (e.g., IMOB-4821).",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "tipo": {
+          "type": "string",
+          "enum": ["adm", "imobiliaria"],
+          "description": "Administrative record category: platform administrator or real estate agency.",
+          "maxLength": 24
+        },
+        "tipoConta": {
+          "type": "string",
+          "enum": ["adm", "imobiliaria"],
+          "description": "Tenant account classification.",
+          "maxLength": 24
+        },
+        "papel": {
+          "type": "string",
+          "enum": ["master_adm", "admin_imobiliaria"],
+          "description": "Role within the multi-tenant hierarchy.",
+          "maxLength": 24
+        },
+        "nome": {
+          "type": "string",
+          "description": "Administrator name or Real Estate Agency trade/legal name.",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Normalized lowercase authorized contract email address (PII).",
+          "minLength": 3,
+          "maxLength": 254
+        },
+        "googleSubId": {
+          "type": "string",
+          "description": "Bound Firebase Auth UID recorded on first verified login.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "senhaPessoalConfigurada": {
+          "type": "boolean",
+          "description": "Indicates whether the agency manager has configured a personal password."
+        },
+        "plano": {
+          "type": "string",
+          "enum": ["plano01", "plano02", "plano03", "plano04", "plano05", "master"],
+          "description": "Acquired agency plan from original commercial tiers.",
+          "maxLength": 32
+        },
+        "planoLabel": {
+          "type": "string",
+          "description": "Human-readable label of the acquired agency plan.",
+          "maxLength": 80
+        },
+        "senhaAcesso": {
+          "type": "string",
+          "description": "Agency portal access code (e.g., ELITE-XXXXXXXX) used alongside codigoCadastro in Painel Comercial.",
+          "maxLength": 32
+        },
+        "cpfCnpj": {
+          "type": "string",
+          "description": "CPF or CNPJ document number (PII).",
+          "maxLength": 20
+        },
+        "creciJuridico": {
+          "type": "string",
+          "description": "CRECI-J registration for real estate agencies.",
+          "maxLength": 32
+        },
+        "responsavel": {
+          "type": "string",
+          "description": "Responsible manager or director name.",
+          "maxLength": 120
+        },
+        "telefone": {
+          "type": "string",
+          "description": "WhatsApp or phone contact (PII).",
+          "maxLength": 30
+        },
+        "cidade": {
+          "type": "string",
+          "description": "City / State.",
+          "maxLength": 80
+        },
+        "limiteCorretores": {
+          "type": "number",
+          "description": "Maximum number of authorized brokers for an agency (0..10000)."
+        },
+        "pagamentoConfirmado": {
+          "type": "boolean",
+          "description": "Payment confirmation status from simuladorcorretorelite.com.br."
+        },
+        "autorizado": {
+          "type": "boolean",
+          "description": "Explicit administrative authorization flag."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["ativo", "pendente_pagamento", "bloqueado", "expirado"],
+          "description": "Current lifecycle status.",
+          "maxLength": 24
+        },
+        "validadeAte": {
+          "type": "string",
+          "description": "Optional contract/license expiration date in YYYY-MM-DD format.",
+          "maxLength": 32
+        },
+        "observacoes": {
+          "type": "string",
+          "description": "Internal administrative notes.",
+          "maxLength": 500
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "Firebase Auth UID of the administrator who created this record (immutable).",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of record creation (immutable)."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last modification."
+        }
+      },
+      "required": [
+        "id",
+        "tipo",
+        "nome",
+        "email",
+        "pagamentoConfirmado",
+        "autorizado",
+        "status",
+        "createdBy",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "TenantBusinessRecord": {
+      "title": "TenantBusinessRecord",
+      "description": "Multi-tenant isolated business record (simulations, client proposals, leads) strictly partitioned by tenantId and corretorId.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique record ID matching the document ID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "tenantId": {
+          "type": "string",
+          "description": "Paying tenant ID (agency ID or autonomous broker ID).",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "corretorId": {
+          "type": "string",
+          "description": "Responsible broker/user record ID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "codigoCorretor": {
+          "type": "string",
+          "description": "Human-readable broker ID (CORR-XXXX) or agency ID (IMOB-XXXX).",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerUid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the owning user.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "corretorEmail": {
+          "type": "string",
+          "format": "email",
+          "description": "Normalized email of the broker who owns this record.",
+          "minLength": 3,
+          "maxLength": 254
+        },
+        "imobiliariaEmail": {
+          "type": "string",
+          "format": "email",
+          "description": "Normalized email of the parent paying agency (omitted for autonomous brokers).",
+          "minLength": 3,
+          "maxLength": 254
+        },
+        "tipoRegistro": {
+          "type": "string",
+          "enum": ["simulacao", "lead", "proposta"],
+          "description": "Business record type.",
+          "maxLength": 24
+        },
+        "titulo": {
+          "type": "string",
+          "description": "Record title or summary.",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "clienteNome": {
+          "type": "string",
+          "description": "Client name (PII).",
+          "maxLength": 120
+        },
+        "clienteTelefone": {
+          "type": "string",
+          "description": "Client phone/WhatsApp (PII).",
+          "maxLength": 30
+        },
+        "resumo": {
+          "type": "string",
+          "description": "Short simulation/proposal summary.",
+          "maxLength": 1000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation (immutable)."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": [
+        "id",
+        "tenantId",
+        "corretorId",
+        "ownerUid",
+        "corretorEmail",
+        "tipoRegistro",
+        "titulo",
+        "createdAt",
+        "updatedAt"
+      ]
     }
   },
   "firestore": {
@@ -102,6 +568,18 @@
     "/admins/{userId}": {
       "schema": { "$ref": "#/entities/AdminRecord" },
       "description": "Admin RBAC registry. Read/write restricted strictly to verified admins."
+    },
+    "/corretor_elite/{recordId}": {
+      "schema": { "$ref": "#/entities/CorretorEliteRecord" },
+      "description": "Multi-tenant Corretor Elite registry: each broker has a unique codigoCorretor (CORR-XXXX) and strict tenantId isolation (autonomous own tenant or linked paying agency tenant)."
+    },
+    "/administrativo/{recordId}": {
+      "schema": { "$ref": "#/entities/AdministrativoRecord" },
+      "description": "Multi-tenant Administrativo registry: paying Real Estate Agencies (IMOB-XXXX, tenantId == id) and platform administrators."
+    },
+    "/tenant_records/{recordId}": {
+      "schema": { "$ref": "#/entities/TenantBusinessRecord" },
+      "description": "Multi-tenant isolated business records (simulations, leads, proposals) strictly scoped by tenantId + corretorEmail/imobiliariaEmail."
     }
   }
 }

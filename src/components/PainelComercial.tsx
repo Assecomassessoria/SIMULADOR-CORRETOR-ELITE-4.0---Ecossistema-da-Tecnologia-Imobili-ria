@@ -1,349 +1,319 @@
 import React, { useState, useEffect } from "react";
-import { Users, Plus, Eye, EyeOff, FileText, X, Loader2, Building2 } from "lucide-react";
-import { validatePassword } from "@/lib/eliteUtils";
-import { supabase } from "@/integrations/supabase/client";
-
-interface Corretor {
-  id: string;
-  nome: string;
-  cpf: string;
-  creci: string;
-  whatsapp: string;
-  email: string;
-  pin: string;
-  status: "ativo" | "inativo";
-  dataCadastro: string;
-}
-
-interface CadastroComercialData {
-  id?: string;
-  razaoSocial: string;
-  cpfCnpj: string;
-  cidade: string;
-  estado: string;
-  plano: string;
-  planoLabel: string;
-  maxUsuarios: number;
-  validade: number;
-  senha: string;
-  dataEnvio: string;
-  dataExpiracao: string;
-  whatsapp: string;
-  email: string;
-}
+import {
+  Users,
+  Plus,
+  Eye,
+  EyeOff,
+  X,
+  Loader2,
+  Building2,
+  KeyRound,
+  Trash2,
+  CheckCircle2,
+  Copy,
+  Check,
+  ShieldCheck,
+  LogOut,
+} from "lucide-react";
+import { useFirebaseAuth } from "@/contexts/FirebaseContext";
+import { signInWithGooglePopup } from "@/lib/firebase";
+import {
+  verifyAgencyPortalCredentials,
+  listAgenciesForAdmin,
+  subscribeAgencyBrokers,
+  registerAgencyBroker,
+  toggleAgencyBrokerStatus,
+  deleteCorretorElite,
+  getPlanoImobiliariaInfo,
+  LIMITS,
+  type AdministrativoRecord,
+  type CorretorEliteRecord,
+} from "@/lib/accessDatabase";
 
 interface PainelComercialProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-function MasterGate({ onAuthenticated }: { onAuthenticated: (senha: string) => void }) {
-  const [pass, setPass] = useState("");
+function AgencyGate({
+  onAuthenticated,
+}: {
+  onAuthenticated: (agency: AdministrativoRecord) => void;
+}) {
+  const { user, isGoogleMaster } = useFirebaseAuth();
+  const [codigoCadastro, setCodigoCadastro] = useState("");
+  const [senha, setSenha] = useState("");
+  const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showPass, setShowPass] = useState(false);
+  const [adminAgencies, setAdminAgencies] = useState<AdministrativoRecord[]>([]);
+  const [loadingAgencies, setLoadingAgencies] = useState(false);
 
-  const handleValidate = async () => {
-    if (!pass.trim()) {
-      setError("Digite a senha do Painel Comercial.");
+  useEffect(() => {
+    if (!isGoogleMaster || !user) return;
+    let active = true;
+    setLoadingAgencies(true);
+    listAgenciesForAdmin()
+      .then((list) => {
+        if (active) setAdminAgencies(list);
+      })
+      .catch(() => {
+        /* ignore list error for quick selector */
+      })
+      .finally(() => {
+        if (active) setLoadingAgencies(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [isGoogleMaster, user]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    const cleanCode = codigoCadastro.trim().toUpperCase();
+    const cleanSenha = senha.trim();
+
+    if (!cleanCode || !cleanSenha) {
+      setError("Informe o ID do Cadastro e a Senha da Imobiliária.");
       return;
     }
+
     setLoading(true);
-    setError("");
     try {
-      const result = await validatePassword(pass.trim(), "painel_comercial");
-      if (result.valid) {
-        onAuthenticated(pass.trim());
-      } else {
-        setError("Senha incorreta.");
-        setPass("");
+      // Ensure verified Google session is active before Firestore lookup
+      if (!user) {
+        await signInWithGooglePopup();
       }
-    } catch {
-      setError("Erro ao validar. Tente novamente.");
+      const result = await verifyAgencyPortalCredentials(cleanCode, cleanSenha);
+      if (result.ok && result.agency) {
+        onAuthenticated(result.agency);
+      } else {
+        setError(result.error || "ID do Cadastro ou Senha da Imobiliária incorretos.");
+      }
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code || "";
+      if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+        setError("Autenticação Google cancelada.");
+      } else if (code === "auth/popup-blocked") {
+        setError("Pop-up bloqueado pelo navegador. Libere pop-ups para continuar.");
+      } else {
+        setError(err instanceof Error ? err.message : "Erro ao validar credenciais da imobiliária.");
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center py-12 px-4">
-      <div className="bg-card rounded-xl border-2 border-gold/50 p-6 w-full max-w-xs text-center space-y-4">
-        <div className="w-12 h-12 mx-auto rounded-full bg-gold/10 flex items-center justify-center">
-          <Users className="w-6 h-6 text-gold" />
+    <div className="flex flex-col items-center justify-center py-6 px-4">
+      <div className="bg-[#07182e] text-slate-100 rounded-2xl border-2 border-gold/50 p-6 w-full max-w-md space-y-5 shadow-2xl">
+        <div className="text-center space-y-2">
+          <div className="w-12 h-12 mx-auto rounded-xl bg-gold/15 border border-gold/40 flex items-center justify-center">
+            <Building2 className="w-6 h-6 text-gold" />
+          </div>
+          <h3 className="text-gold font-extrabold uppercase tracking-wider text-sm">
+            Painel da Imobiliária — Cadastro de Corretores
+          </h3>
+          <p className="text-slate-300 text-xs leading-relaxed">
+            Entre com o <strong className="text-gold">ID do Cadastro</strong> e a{" "}
+            <strong className="text-gold">Senha da Imobiliária</strong> para cadastrar e gerenciar corretores
+            vinculados ao seu plano.
+          </p>
         </div>
-        <h3 className="text-primary font-bold uppercase text-sm">Painel Comercial</h3>
-        <p className="text-muted-foreground text-xs">Digite a senha ELITE do contrato para acessar</p>
-        <div className="relative">
-          <input
-            type={showPass ? "text" : "password"}
-            value={pass}
-            onChange={(e) => {
-              setPass(e.target.value);
-              setError("");
-            }}
-            placeholder="ELITE-XXXXXXXX"
-            maxLength={20}
-            onKeyDown={(e) => e.key === "Enter" && handleValidate()}
-            className="w-full px-4 py-3 pr-10 text-lg font-bold tracking-widest text-center border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-gold bg-card"
-          />
-          <button
-            type="button"
-            onClick={() => setShowPass(!showPass)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
-            tabIndex={-1}
-          >
-            {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-          </button>
-        </div>
-        {error && <p className="text-destructive text-xs">{error}</p>}
-        <button
-          onClick={handleValidate}
-          disabled={loading}
-          className="w-full py-3 rounded-lg bg-primary text-gold font-bold uppercase hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" /> Verificando...
-            </>
-          ) : (
-            "Acessar Painel"
+
+        <form onSubmit={handleSubmit} className="space-y-3.5">
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-gold/80 mb-1">
+              ID do Cadastro da Imobiliária *
+            </label>
+            <input
+              type="text"
+              value={codigoCadastro}
+              onChange={(e) => {
+                setCodigoCadastro(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""));
+                setError("");
+              }}
+              placeholder="Ex: IMOB-1234"
+              maxLength={LIMITS.codigoCadastro}
+              className="w-full px-3.5 py-2.5 text-sm font-mono font-bold tracking-wider uppercase rounded-lg bg-[#0b213d] border border-gold/35 text-gold placeholder:text-gold/35 focus:outline-none focus:border-gold"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-gold/80 mb-1">
+              Senha da Imobiliária *
+            </label>
+            <div className="relative">
+              <input
+                type={showPass ? "text" : "password"}
+                value={senha}
+                onChange={(e) => {
+                  setSenha(e.target.value);
+                  setError("");
+                }}
+                placeholder="ELITE-XXXXXXXX"
+                maxLength={LIMITS.senhaAcesso}
+                className="w-full px-3.5 py-2.5 pr-10 text-sm font-mono font-bold tracking-wider rounded-lg bg-[#0b213d] border border-gold/35 text-gold placeholder:text-gold/35 focus:outline-none focus:border-gold"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPass(!showPass)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gold/60 hover:text-gold transition-colors"
+                tabIndex={-1}
+              >
+                {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          {user?.email && (
+            <div className="flex items-center gap-2 text-[11px] text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-2">
+              <ShieldCheck className="w-4 h-4 shrink-0" />
+              <span className="truncate">Conta Google conectada: {user.email}</span>
+            </div>
           )}
-        </button>
+
+          {error && (
+            <div className="p-3 rounded-lg bg-red-500/15 border border-red-500/40 text-red-300 text-xs">
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 rounded-xl gold-gradient text-primary font-extrabold uppercase text-xs tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" /> Validando Acesso...
+              </>
+            ) : (
+              <>
+                <KeyRound className="w-4 h-4" />
+                {user ? "Acessar Painel da Imobiliária" : "Conectar Google & Acessar Painel"}
+              </>
+            )}
+          </button>
+        </form>
+
+        {/* Master Quick Access selector */}
+        {isGoogleMaster && (
+          <div className="pt-3 border-t border-gold/25 space-y-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gold/75">
+              Acesso Rápido Master — Imobiliárias Cadastradas
+            </p>
+            {loadingAgencies ? (
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Carregando imobiliárias...
+              </div>
+            ) : adminAgencies.length === 0 ? (
+              <p className="text-[11px] text-slate-400">
+                Nenhuma imobiliária cadastrada no Banco Administrativo ainda.
+              </p>
+            ) : (
+              <select
+                defaultValue=""
+                onChange={(e) => {
+                  const chosen = adminAgencies.find((a) => a.id === e.target.value);
+                  if (chosen) onAuthenticated(chosen);
+                }}
+                className="w-full px-3 py-2 text-xs rounded-lg bg-[#0b213d] border border-gold/30 text-gold focus:outline-none focus:border-gold"
+              >
+                <option value="">Selecionar imobiliária diretamente...</option>
+                {adminAgencies.map((ag) => (
+                  <option key={ag.id} value={ag.id}>
+                    [{ag.codigoCadastro || "SEM-ID"}] {ag.nome} —{" "}
+                    {ag.planoLabel || getPlanoImobiliariaInfo(ag.plano).label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 export default function PainelComercial({ isOpen, onClose }: PainelComercialProps) {
-  const [authenticated, setAuthenticated] = useState(false);
-  const [senhaAcesso, setSenhaAcesso] = useState("");
-  const [cadastro, setCadastro] = useState<CadastroComercialData | null>(null);
-  const [corretores, setCorretores] = useState<Corretor[]>([]);
+  const { user, isAuthReady } = useFirebaseAuth();
+  const [agency, setAgency] = useState<AdministrativoRecord | null>(null);
+  const [corretores, setCorretores] = useState<CorretorEliteRecord[]>([]);
   const [loadingData, setLoadingData] = useState(false);
+  const [dbError, setDbError] = useState("");
+  const [feedback, setFeedback] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ nome: "", cpf: "", creci: "", whatsapp: "", email: "", pin: "" });
   const [formError, setFormError] = useState("");
   const [savingCorretor, setSavingCorretor] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [expandedCorretor, setExpandedCorretor] = useState<string | null>(null);
+  const [copiedCreds, setCopiedCreds] = useState(false);
 
-  // Load data from DB when authenticated
+  // Subscribe live to this agency's linked brokers in Firestore /corretor_elite
   useEffect(() => {
-    if (!authenticated || !isOpen || !senhaAcesso) return;
+    if (!isOpen || !isAuthReady || !user || !agency) return;
+    setLoadingData(true);
+    setDbError("");
 
-    const loadData = async () => {
-      setLoadingData(true);
-      try {
-        // Load cadastro comercial from DB via edge function
-        const { data: cadastroResult } = await supabase.functions.invoke("register-elite", {
-          body: {
-            admin_password: "__load_comercial__",
-            tipo_cadastro: "load_comercial",
-            senha_acesso: senhaAcesso,
-          },
-        });
-
-        // If DB returns data, use it; otherwise try localStorage fallback
-        if (cadastroResult?.cadastro) {
-          const c = cadastroResult.cadastro;
-          const cadastroData: CadastroComercialData = {
-            id: c.id,
-            razaoSocial: c.razao_social,
-            cpfCnpj: c.cpf_cnpj || "",
-            cidade: c.cidade || "",
-            estado: c.estado || "",
-            plano: c.plano,
-            planoLabel: c.plano_label || "",
-            maxUsuarios: c.max_usuarios,
-            validade: c.validade_dias,
-            senha: c.senha,
-            dataEnvio: c.data_envio || "",
-            dataExpiracao: c.data_expiracao || "",
-            whatsapp: c.whatsapp || "",
-            email: c.email || "",
-          };
-          setCadastro(cadastroData);
-
-          // Load corretores for this cadastro
-          if (cadastroResult.corretores) {
-            const mapped = cadastroResult.corretores.map((cr: any) => ({
-              id: cr.id,
-              nome: cr.nome,
-              cpf: cr.cpf,
-              creci: cr.creci || "",
-              whatsapp: cr.whatsapp || "",
-              email: cr.email || "",
-              pin: "••••••",
-              status: cr.status as "ativo" | "inativo",
-              dataCadastro: cr.data_cadastro || "",
-            }));
-            setCorretores(mapped);
-          }
-        } else {
-          // Fallback to localStorage
-          try {
-            const data = localStorage.getItem("elite_cadastro_comercial");
-            if (data) setCadastro(JSON.parse(data));
-          } catch {
-            /* ignore */
-          }
-          try {
-            const data = localStorage.getItem("elite_corretores");
-            if (data) setCorretores(JSON.parse(data));
-          } catch {
-            /* ignore */
-          }
-        }
-      } catch {
-        // Fallback to localStorage
-        try {
-          const data = localStorage.getItem("elite_cadastro_comercial");
-          if (data) setCadastro(JSON.parse(data));
-        } catch {
-          /* ignore */
-        }
-        try {
-          const data = localStorage.getItem("elite_corretores");
-          if (data) setCorretores(JSON.parse(data));
-        } catch {
-          /* ignore */
-        }
-      } finally {
+    const unsub = subscribeAgencyBrokers(
+      agency,
+      (list) => {
+        setCorretores(list);
         setLoadingData(false);
-      }
-    };
+      },
+      (err) => {
+        setDbError(err.message);
+        setLoadingData(false);
+      },
+    );
 
-    loadData();
-  }, [authenticated, isOpen, senhaAcesso]);
+    return () => {
+      unsub();
+    };
+  }, [isOpen, isAuthReady, user, agency]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setFeedback(null);
+      setFormError("");
+      setConfirmDeleteId(null);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  // Derive plan limits from cadastro or fallback
-  const limiteUsuarios = cadastro?.maxUsuarios || 10;
-  const planoLabel = cadastro?.planoLabel || "Sem plano vinculado";
-  const ativos = corretores.filter((c) => c.status === "ativo").length;
-  const disponiveis = limiteUsuarios - ativos;
-  const isMasterAccess = senhaAcesso === "472370" || senhaAcesso === "47231970";
-  const empresaPreenchida = !!(cadastro?.razaoSocial?.trim() && cadastro?.cpfCnpj?.trim());
-  const podeCadastrarCorretor = empresaPreenchida || isMasterAccess;
-
-  const handleAddCorretor = async () => {
-    setFormError("");
-    if (!form.nome.trim() || !form.cpf.trim()) {
-      setFormError("Nome e CPF são obrigatórios.");
-      return;
-    }
-    if (!/^\d{6}$/.test(form.pin)) {
-      setFormError("A senha deve ter exatamente 6 dígitos.");
-      return;
-    }
-    if (ativos >= limiteUsuarios) {
-      setFormError("Limite de licenças atingido para este plano.");
-      return;
-    }
-
-    setSavingCorretor(true);
-    try {
-      const dataCadastro = new Date().toLocaleDateString("pt-BR");
-
-      // Get admin password from localStorage cadastro
-      const localCadastro = localStorage.getItem("elite_cadastro_comercial");
-      const adminPass = localCadastro ? JSON.parse(localCadastro) : null;
-
-      const { data, error } = await supabase.functions.invoke("register-elite", {
-        body: {
-          admin_password: "__corretor_register__",
-          tipo_cadastro: "corretor",
-          cadastro_comercial_id: cadastro?.id || null,
-          nome: form.nome.trim(),
-          cpf: form.cpf.trim(),
-          creci: form.creci.trim(),
-          whatsapp: form.whatsapp.trim(),
-          email: form.email.trim(),
-          pin: form.pin,
-          data_cadastro: dataCadastro,
-        },
-      });
-
-      if (error) {
-        setFormError("Erro ao salvar corretor. Tente novamente.");
-        setSavingCorretor(false);
-        return;
-      }
-
-      const novo: Corretor = {
-        id: data?.corretor_id || crypto.randomUUID(),
-        nome: form.nome.trim(),
-        cpf: form.cpf.trim(),
-        creci: form.creci.trim(),
-        whatsapp: form.whatsapp.trim(),
-        email: form.email.trim(),
-        pin: "••••••",
-        status: "ativo",
-        dataCadastro,
-      };
-
-      const updated = [...corretores, novo];
-      setCorretores(updated);
-      // Also save to localStorage as fallback
-      localStorage.setItem("elite_corretores", JSON.stringify(updated));
-      setForm({ nome: "", cpf: "", creci: "", whatsapp: "", email: "", pin: "" });
-      setShowForm(false);
-    } catch {
-      setFormError("Erro ao cadastrar corretor.");
-    } finally {
-      setSavingCorretor(false);
-    }
+  const handleCloseModal = () => {
+    setAgency(null);
+    setCorretores([]);
+    setShowForm(false);
+    setFeedback(null);
+    onClose();
   };
 
-  const toggleStatus = async (id: string) => {
-    const corretor = corretores.find((c) => c.id === id);
-    if (!corretor) return;
-
-    const newStatus = corretor.status === "ativo" ? "inativo" : "ativo";
-
-    // Update in DB
-    try {
-      await supabase.functions.invoke("register-elite", {
-        body: {
-          admin_password: "__corretor_status__",
-          tipo_cadastro: "corretor_status",
-          corretor_id: id,
-          status: newStatus,
-        },
-      });
-    } catch {
-      console.error("Failed to update status in DB");
-    }
-
-    const updated = corretores.map((c) => (c.id === id ? { ...c, status: newStatus as "ativo" | "inativo" } : c));
-    setCorretores(updated);
-    localStorage.setItem("elite_corretores", JSON.stringify(updated));
-  };
-
-  const gerarDoc = (corretor: Corretor) => {
-    const dataAtual = new Date().toLocaleDateString("pt-BR");
-    alert(
-      `Gerando Autorização CAIXA...\n\nCorretor: ${corretor.nome}\nCPF: ${corretor.cpf}\nCRECI: ${corretor.creci}\nData: ${dataAtual}\n\nDocumento em conformidade com Res. BACEN 5.037/22.`,
-    );
-  };
-
-  if (!authenticated) {
+  if (!agency) {
     return (
       <div
-        className="fixed inset-0 z-[2000] flex items-center justify-center"
-        style={{ background: "rgba(0, 31, 63, 0.95)" }}
+        className="fixed inset-0 z-[2000] flex items-center justify-center p-3 bg-black/80 backdrop-blur-sm overflow-y-auto"
+        onClick={handleCloseModal}
       >
-        <div className="relative w-[90%] max-w-xl">
+        <div className="relative w-full max-w-md" onClick={(e) => e.stopPropagation()}>
           <button
-            onClick={onClose}
-            className="absolute -top-2 -right-2 z-10 w-8 h-8 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center text-sm font-bold hover:opacity-80"
+            type="button"
+            onClick={handleCloseModal}
+            className="absolute top-3 right-3 z-10 w-8 h-8 rounded-lg bg-[#0b213d] border border-gold/30 text-gold/70 hover:text-gold flex items-center justify-center"
+            aria-label="Fechar painel comercial"
           >
             <X className="w-4 h-4" />
           </button>
-          <MasterGate
-            onAuthenticated={(senha) => {
-              setSenhaAcesso(senha);
-              setAuthenticated(true);
+          <AgencyGate
+            onAuthenticated={(matchedAgency) => {
+              setAgency(matchedAgency);
+              setFeedback(null);
             }}
           />
         </div>
@@ -351,297 +321,556 @@ export default function PainelComercial({ isOpen, onClose }: PainelComercialProp
     );
   }
 
+  const planInfo = getPlanoImobiliariaInfo(agency.plano);
+  const limiteUsuarios = agency.limiteCorretores ?? planInfo.max;
+  const planoLabel = agency.planoLabel || planInfo.label;
+  const ativos = corretores.filter((c) => c.status === "ativo" && c.autorizado).length;
+  const disponiveis = Math.max(0, limiteUsuarios - ativos);
+
+  const handleCopyCredentials = async () => {
+    try {
+      await navigator.clipboard.writeText(
+        `Imobiliária: ${agency.nome}\nID do Cadastro: ${agency.codigoCadastro || "—"}\nSenha: ${agency.senhaAcesso || "—"}\nPlano: ${planoLabel}`,
+      );
+      setCopiedCreds(true);
+      setTimeout(() => setCopiedCreds(false), 2000);
+    } catch {
+      setFeedback({ type: "err", text: "Não foi possível copiar os dados." });
+    }
+  };
+
+  const handleAddCorretor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError("");
+    setFeedback(null);
+
+    if (!form.nome.trim()) {
+      setFormError("Informe o nome completo do corretor.");
+      return;
+    }
+    if (!form.email.trim() || !form.email.includes("@")) {
+      setFormError("Informe o e-mail Google do corretor para liberar o acesso ao simulador.");
+      return;
+    }
+    if (form.pin.trim() && !/^\d{6}$/.test(form.pin.trim())) {
+      setFormError("Se informado, o PIN de acesso deve ter exatamente 6 dígitos.");
+      return;
+    }
+    if (ativos >= limiteUsuarios) {
+      setFormError(`Limite de ${limiteUsuarios} licenças ativas atingido para o plano ${planoLabel}.`);
+      return;
+    }
+
+    setSavingCorretor(true);
+    try {
+      const created = await registerAgencyBroker(agency, {
+        nome: form.nome.trim(),
+        email: form.email.trim(),
+        cpfCnpj: form.cpf.trim(),
+        creci: form.creci.trim(),
+        telefone: form.whatsapp.trim(),
+        pin: form.pin.trim() || undefined,
+      });
+
+      setForm({ nome: "", cpf: "", creci: "", whatsapp: "", email: "", pin: "" });
+      setShowForm(false);
+      setFeedback({
+        type: "ok",
+        text: `Corretor [${created.codigoCorretor}] vinculado à imobiliária! O corretor já pode criar sua Senha Pessoal ou entrar com Google usando o e-mail cadastrado.`,
+      });
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Erro ao cadastrar corretor.");
+    } finally {
+      setSavingCorretor(false);
+    }
+  };
+
+  const handleToggleStatus = async (corretor: CorretorEliteRecord) => {
+    const isCurrentlyActive = corretor.status === "ativo" && corretor.autorizado;
+    if (!isCurrentlyActive && ativos >= limiteUsuarios) {
+      setFeedback({
+        type: "err",
+        text: `Limite de ${limiteUsuarios} corretores ativos atingido. Bloqueie outro corretor ou amplie o plano.`,
+      });
+      return;
+    }
+
+    setBusyId(corretor.id);
+    setFeedback(null);
+    try {
+      await toggleAgencyBrokerStatus(corretor.id, isCurrentlyActive);
+      setFeedback({
+        type: "ok",
+        text: isCurrentlyActive
+          ? `Acesso bloqueado para ${corretor.nome}.`
+          : `Acesso reativado para ${corretor.nome}.`,
+      });
+    } catch (err) {
+      setFeedback({ type: "err", text: err instanceof Error ? err.message : "Erro ao alterar status." });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleDeleteBroker = async (recordId: string) => {
+    setBusyId(recordId);
+    setFeedback(null);
+    try {
+      await deleteCorretorElite(recordId);
+      setConfirmDeleteId(null);
+      setFeedback({ type: "ok", text: "Corretor removido da equipe da imobiliária." });
+    } catch (err) {
+      setFeedback({ type: "err", text: err instanceof Error ? err.message : "Erro ao excluir corretor." });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const fieldCls =
+    "w-full px-3 py-2 text-xs rounded-lg bg-[#07182e] border border-gold/30 text-gold placeholder:text-gold/40 focus:outline-none focus:border-gold";
+  const labelCls = "block text-[10px] font-bold uppercase tracking-wider text-gold/80 mb-1";
+
   return (
     <div
-      className="fixed inset-0 z-[2000] flex items-center justify-center overflow-y-auto"
-      style={{ background: "rgba(0, 31, 63, 0.95)" }}
+      className="fixed inset-0 z-[2000] flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm"
+      onClick={handleCloseModal}
     >
-      <div className="bg-card w-[95%] max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl shadow-2xl my-4">
+      <div
+        className="w-full max-w-4xl max-h-[92vh] flex flex-col rounded-2xl border-2 border-gold/40 bg-[#07182e] text-slate-100 shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b-2 border-gold/30 sticky top-0 bg-card z-10">
-          <div>
-            <h2 className="text-sm font-bold text-gold uppercase tracking-wider">Painel Comercial</h2>
-            <p className="text-[10px] text-muted-foreground">Gestão de Equipes e Documentação</p>
-            <div className="mt-1 text-[11px] text-foreground space-y-0.5">
-              <p>
-                <strong className="text-gold/80">EMPRESA:</strong> {cadastro?.razaoSocial || ""}
-              </p>
-              <p>
-                <strong className="text-gold/80">CNPJ:</strong> {cadastro?.cpfCnpj || ""}
-              </p>
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gold/30 bg-[#041022]">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-sm sm:text-base font-extrabold text-gold uppercase tracking-wider">
+                Painel da Imobiliária — Corretores Vinculados
+              </h2>
+              {agency.codigoCadastro && (
+                <span className="px-2 py-0.5 text-[10px] font-mono font-extrabold rounded border border-gold/50 bg-gold/15 text-gold">
+                  ID: {agency.codigoCadastro}
+                </span>
+              )}
             </div>
-          </div>
-          <button
-            onClick={() => {
-              setAuthenticated(false);
-              onClose();
-            }}
-            className="p-1 hover:bg-muted rounded transition-colors"
-          >
-            <X className="w-5 h-5 text-destructive" />
-          </button>
-        </div>
-
-        {/* Loading */}
-        {loadingData && (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-gold" />
-            <span className="ml-2 text-sm text-muted-foreground">Carregando dados...</span>
-          </div>
-        )}
-
-        {/* Cadastro Comercial Info - below title */}
-        {!loadingData && cadastro ? (
-          <div className="mx-4 mt-4 p-3 bg-primary/10 border border-gold/30 rounded-lg space-y-1">
-            <div className="flex items-center gap-2 mb-2">
-              <Building2 className="w-4 h-4 text-gold" />
-              <span className="text-xs font-bold text-gold uppercase">Dados do Contrato</span>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 text-[11px]">
-              <p className="text-foreground">
-                <strong className="text-gold/80">Empresa:</strong> {cadastro.razaoSocial}
-              </p>
-              <p className="text-foreground">
-                <strong className="text-gold/80">CPF/CNPJ:</strong> {cadastro.cpfCnpj}
-              </p>
-              <p className="text-foreground">
-                <strong className="text-gold/80">Cidade/UF:</strong> {cadastro.cidade}/{cadastro.estado}
-              </p>
-              <p className="text-foreground">
-                <strong className="text-gold/80">Plano:</strong> {cadastro.planoLabel}
-              </p>
-              <p className="text-foreground">
-                <strong className="text-gold/80">Máx. Usuários:</strong> {cadastro.maxUsuarios}
-              </p>
-              <p className="text-foreground">
-                <strong className="text-gold/80">Validade:</strong> {cadastro.validade} dias
-              </p>
-              <p className="text-foreground">
-                <strong className="text-gold/80">Ativação:</strong> {cadastro.dataEnvio}
-              </p>
-              <p className="text-foreground">
-                <strong className="text-gold/80">Expiração:</strong> {cadastro.dataExpiracao}
-              </p>
-              <p className="text-foreground">
-                <strong className="text-gold/80">Senha:</strong> {cadastro.senha}
-              </p>
-            </div>
-          </div>
-        ) : !loadingData ? (
-          <div className="mx-4 mt-4 p-3 bg-muted/50 border border-gold/20 rounded-lg text-center">
-            <p className="text-muted-foreground text-xs">
-              Nenhum cadastro comercial vinculado. Registre pelo painel administrativo.
+            <p className="text-xs text-slate-300 mt-0.5 truncate">
+              <strong className="text-gold/90">{agency.nome}</strong>
+              {agency.cpfCnpj ? ` • CNPJ: ${agency.cpfCnpj}` : ""}
+              {agency.creciJuridico ? ` • CRECI-J: ${agency.creciJuridico}` : ""}
             </p>
           </div>
-        ) : null}
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                setAgency(null);
+                setCorretores([]);
+                setShowForm(false);
+              }}
+              className="px-2.5 py-1.5 rounded-lg border border-gold/30 text-gold/80 hover:text-gold hover:bg-gold/10 text-[11px] font-bold flex items-center gap-1"
+              title="Trocar Imobiliária"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Trocar ID</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleCloseModal}
+              className="p-2 rounded-lg text-gold/70 hover:text-gold hover:bg-gold/10 transition-colors"
+              aria-label="Fechar painel"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
 
-        {!loadingData && (
-          <div className="p-4 space-y-5">
-            {/* Stats Grid */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-gold/10 border border-gold/30 rounded-lg p-3 text-center">
-                <p className="text-[10px] text-gold/70 uppercase font-bold">Plano</p>
-                <p className="text-sm font-bold text-gold">{planoLabel}</p>
-              </div>
-              <div className="bg-gold/10 border border-gold/30 rounded-lg p-3 text-center">
-                <p className="text-[10px] text-gold/70 uppercase font-bold">Licenças Ativas</p>
-                <p className="text-lg font-bold text-gold">{ativos}</p>
-              </div>
-              <div className="bg-gold/10 border border-gold/30 rounded-lg p-3 text-center">
-                <p className="text-[10px] text-gold/70 uppercase font-bold">Vagas</p>
-                <p className="text-lg font-bold text-gold">{disponiveis < 0 ? 0 : disponiveis}</p>
-              </div>
-            </div>
-
-            {/* Add Button */}
-            {!showForm && !podeCadastrarCorretor && (
-              <div className="w-full py-3 px-4 rounded-lg bg-destructive/10 border border-destructive/30 text-center">
-                <p className="text-destructive text-xs font-bold">⚠ Cadastro de corretores bloqueado</p>
-                <p className="text-muted-foreground text-[10px] mt-1">
-                  Os dados da empresa (Razão Social e CNPJ) precisam estar preenchidos no cadastro comercial antes de
-                  cadastrar corretores.
-                </p>
-              </div>
-            )}
-            {!showForm && podeCadastrarCorretor && (
-              <button
-                onClick={() => setShowForm(true)}
-                disabled={ativos >= limiteUsuarios}
-                className="w-full py-3 rounded-lg bg-primary text-gold font-bold uppercase text-xs tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                <Plus className="w-4 h-4" /> Cadastrar Novo Corretor
+        {/* Scrollable Body */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+          {/* Feedback / Error banners */}
+          {feedback && (
+            <div
+              className={`p-3 rounded-lg text-xs font-semibold flex items-center justify-between border ${
+                feedback.type === "ok"
+                  ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300"
+                  : "bg-red-500/15 border-red-500/40 text-red-300"
+              }`}
+            >
+              <span>{feedback.text}</span>
+              <button type="button" onClick={() => setFeedback(null)} className="opacity-70 hover:opacity-100">
+                <X className="w-4 h-4" />
               </button>
-            )}
+            </div>
+          )}
 
-            {/* Form */}
-            {showForm && (
-              <div className="bg-muted/50 border border-gold/20 rounded-lg p-4 space-y-3">
-                <h3 className="text-xs font-bold text-primary uppercase">Cadastrar Novo Corretor</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {dbError && (
+            <div className="p-3 rounded-lg text-xs bg-red-500/15 border border-red-500/40 text-red-300">
+              Erro ao sincronizar equipe no Firestore: {dbError}
+            </div>
+          )}
+
+          {/* Dados do Contrato da Imobiliária */}
+          <div className="p-4 rounded-xl bg-[#0b213d] border border-gold/30 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-gold" />
+                <span className="text-xs font-extrabold text-gold uppercase tracking-wider">
+                  Dados do Contrato &amp; Plano Adquirido
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleCopyCredentials}
+                className="px-2.5 py-1 rounded-lg border border-gold/35 text-gold text-[11px] font-bold hover:bg-gold/10 flex items-center gap-1"
+              >
+                {copiedCreds ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-emerald-300">Copiado</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copiar ID + Senha</span>
+                  </>
+                )}
+              </button>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-[11px]">
+              <p className="text-slate-300">
+                <strong className="text-gold/80">ID do Cadastro:</strong>{" "}
+                <span className="font-mono font-bold text-white">{agency.codigoCadastro || "—"}</span>
+              </p>
+              <p className="text-slate-300">
+                <strong className="text-gold/80">Plano Escolhido:</strong>{" "}
+                <span className="text-amber-200 font-semibold">{planoLabel}</span>
+              </p>
+              <p className="text-slate-300">
+                <strong className="text-gold/80">Máx. Usuários:</strong>{" "}
+                <span className="text-white font-bold">{limiteUsuarios}</span>
+              </p>
+              <p className="text-slate-300">
+                <strong className="text-gold/80">E-mail Google:</strong> {agency.email}
+              </p>
+              <p className="text-slate-300">
+                <strong className="text-gold/80">Cidade/UF:</strong> {agency.cidade || "—"}
+              </p>
+              <p className="text-slate-300">
+                <strong className="text-gold/80">Validade:</strong> {agency.validadeAte || "Sem expiração"}
+              </p>
+              {agency.senhaAcesso && (
+                <p className="text-slate-300">
+                  <strong className="text-gold/80">Senha:</strong>{" "}
+                  <span className="font-mono text-gold font-bold">{agency.senhaAcesso}</span>
+                </p>
+              )}
+              {agency.responsavel && (
+                <p className="text-slate-300">
+                  <strong className="text-gold/80">Responsável:</strong> {agency.responsavel}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* KPI Stats Grid */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-[#0b213d] border border-gold/30 rounded-xl p-3 text-center">
+              <p className="text-[10px] text-gold/75 uppercase font-bold">Plano</p>
+              <p className="text-xs sm:text-sm font-extrabold text-gold mt-1">{planoLabel}</p>
+            </div>
+            <div className="bg-[#0b213d] border border-emerald-500/30 rounded-xl p-3 text-center">
+              <p className="text-[10px] text-emerald-300/80 uppercase font-bold">Licenças Ativas</p>
+              <p className="text-lg font-extrabold text-emerald-400 mt-1">
+                {ativos} / {limiteUsuarios}
+              </p>
+            </div>
+            <div className="bg-[#0b213d] border border-sky-500/30 rounded-xl p-3 text-center">
+              <p className="text-[10px] text-sky-300/80 uppercase font-bold">Vagas Disponíveis</p>
+              <p className="text-lg font-extrabold text-sky-300 mt-1">{disponiveis}</p>
+            </div>
+          </div>
+
+          {/* Add Corretor CTA */}
+          {!showForm && (
+            <button
+              type="button"
+              onClick={() => {
+                setShowForm(true);
+                setFormError("");
+              }}
+              disabled={ativos >= limiteUsuarios}
+              className="w-full py-3 rounded-xl gold-gradient text-primary font-extrabold uppercase text-xs tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              {ativos >= limiteUsuarios
+                ? `Limite do Plano Atingido (${ativos}/${limiteUsuarios})`
+                : "Cadastrar Novo Corretor Vinculado à Imobiliária"}
+            </button>
+          )}
+
+          {/* New Broker Form */}
+          {showForm && (
+            <form
+              onSubmit={handleAddCorretor}
+              className="bg-[#0b213d] border-2 border-gold/45 rounded-xl p-4 space-y-4"
+            >
+              <div className="flex items-center justify-between border-b border-gold/20 pb-2">
+                <h3 className="text-xs font-extrabold text-gold uppercase tracking-wider">
+                  Novo Corretor — Vinculado a {agency.nome} ({agency.codigoCadastro})
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForm(false);
+                    setFormError("");
+                  }}
+                  className="text-gold/60 hover:text-gold"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Nome Completo do Corretor *</label>
                   <input
+                    required
                     value={form.nome}
                     onChange={(e) => setForm({ ...form, nome: e.target.value })}
                     placeholder="Nome do Corretor"
-                    maxLength={100}
-                    className="px-3 py-2 border border-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-gold bg-card"
+                    maxLength={LIMITS.nome}
+                    className={fieldCls}
                   />
+                </div>
+                <div>
+                  <label className={labelCls}>E-mail Google do Corretor *</label>
+                  <input
+                    required
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    placeholder="corretor@gmail.com"
+                    maxLength={LIMITS.email}
+                    className={fieldCls}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>CPF</label>
                   <input
                     value={form.cpf}
                     onChange={(e) => setForm({ ...form, cpf: e.target.value.replace(/\D/g, "").slice(0, 11) })}
                     placeholder="CPF (apenas números)"
                     maxLength={11}
-                    className="px-3 py-2 border border-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-gold bg-card"
+                    className={fieldCls}
                   />
+                </div>
+                <div>
+                  <label className={labelCls}>CRECI</label>
                   <input
                     value={form.creci}
                     onChange={(e) => setForm({ ...form, creci: e.target.value })}
-                    placeholder="CRECI"
-                    maxLength={20}
-                    className="px-3 py-2 border border-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-gold bg-card"
+                    placeholder="Ex: 123456-F"
+                    maxLength={LIMITS.creci}
+                    className={fieldCls}
                   />
+                </div>
+                <div>
+                  <label className={labelCls}>WhatsApp (DDD + Número)</label>
                   <input
                     value={form.whatsapp}
                     onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
-                    placeholder="WhatsApp (DDD + Número)"
-                    maxLength={20}
-                    className="px-3 py-2 border border-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-gold bg-card"
+                    placeholder="(11) 99999-9999"
+                    maxLength={LIMITS.telefone}
+                    className={fieldCls}
                   />
-                  <input
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    placeholder="Email"
-                    type="email"
-                    maxLength={100}
-                    className="px-3 py-2 border border-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-gold bg-card"
-                  />
-                  <div>
-                    <input
-                      type="password"
-                      value={form.pin}
-                      onChange={(e) => setForm({ ...form, pin: e.target.value.replace(/\D/g, "").slice(0, 6) })}
-                      placeholder="Senha 6 dígitos"
-                      maxLength={6}
-                      className="px-3 py-2 border border-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-gold bg-card w-full"
-                    />
-                    <span className="text-[10px] text-muted-foreground">O corretor usará esta senha para logar.</span>
-                  </div>
                 </div>
-                {formError && <p className="text-destructive text-xs">{formError}</p>}
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleAddCorretor}
-                    disabled={savingCorretor}
-                    className="flex-1 py-2.5 rounded-lg bg-primary text-gold font-bold text-xs uppercase hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {savingCorretor ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" /> Salvando...
-                      </>
-                    ) : (
-                      "Ativar Acesso e Liberar Simulador"
-                    )}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowForm(false);
-                      setFormError("");
-                    }}
-                    className="px-4 py-2.5 rounded-lg bg-muted text-muted-foreground text-xs uppercase hover:opacity-80"
-                  >
-                    Cancelar
-                  </button>
+                <div>
+                  <label className={labelCls}>PIN 6 Dígitos (Opcional)</label>
+                  <input
+                    type="password"
+                    value={form.pin}
+                    onChange={(e) => setForm({ ...form, pin: e.target.value.replace(/\D/g, "").slice(0, 6) })}
+                    placeholder="6 dígitos numéricos"
+                    maxLength={6}
+                    className={fieldCls}
+                  />
                 </div>
               </div>
-            )}
 
-            {/* Corretores Table */}
-            {corretores.length > 0 && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-gold/20 text-primary">
-                      <th className="px-3 py-2 text-left font-bold uppercase">Corretor</th>
-                      <th className="px-3 py-2 text-center font-bold uppercase hidden sm:table-cell">WhatsApp</th>
-                      <th className="px-3 py-2 text-center font-bold uppercase hidden sm:table-cell">Data Cadastro</th>
-                      <th className="px-3 py-2 text-center font-bold uppercase">PIN</th>
-                      <th className="px-3 py-2 text-center font-bold uppercase">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {corretores.map((c) => (
+              <p className="text-[11px] text-slate-400">
+                O corretor será salvo diretamente no banco <strong className="text-gold">Corretor Elite</strong> como{" "}
+                <strong className="text-amber-300">Vinculado à Imobiliária</strong> e poderá entrar no simulador usando
+                o e-mail Google informado acima.
+              </p>
+
+              {formError && (
+                <div className="p-2.5 rounded-lg bg-red-500/15 border border-red-500/40 text-red-300 text-xs">
+                  {formError}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForm(false);
+                    setFormError("");
+                  }}
+                  className="px-4 py-2 rounded-lg border border-gold/30 text-gold/80 text-xs font-bold uppercase hover:bg-gold/10"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingCorretor}
+                  className="px-5 py-2 rounded-lg gold-gradient text-primary font-extrabold text-xs uppercase tracking-wider hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {savingCorretor ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" /> Salvando...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" /> Ativar Acesso e Liberar Simulador
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* Corretores Table */}
+          {loadingData ? (
+            <div className="flex items-center justify-center py-10 text-gold/75 text-xs gap-2">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Carregando corretores vinculados...</span>
+            </div>
+          ) : corretores.length > 0 ? (
+            <div className="overflow-x-auto rounded-xl border border-gold/25">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="bg-[#041022] text-gold border-b border-gold/25">
+                    <th className="px-3 py-2.5 text-left font-extrabold uppercase">Corretor</th>
+                    <th className="px-3 py-2.5 text-left font-extrabold uppercase hidden sm:table-cell">
+                      E-mail Google
+                    </th>
+                    <th className="px-3 py-2.5 text-center font-extrabold uppercase hidden md:table-cell">WhatsApp</th>
+                    <th className="px-3 py-2.5 text-center font-extrabold uppercase">Status</th>
+                    <th className="px-3 py-2.5 text-center font-extrabold uppercase">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {corretores.map((c) => {
+                    const isActive = c.status === "ativo" && c.autorizado;
+                    return (
                       <React.Fragment key={c.id}>
                         <tr
-                          className="border-b border-border hover:bg-muted/30 cursor-pointer"
+                          className="border-b border-gold/15 hover:bg-[#0b213d]/80 cursor-pointer transition-colors"
                           onClick={() => setExpandedCorretor(expandedCorretor === c.id ? null : c.id)}
                         >
-                          <td className="px-3 py-2">
-                            <strong className="text-foreground">{c.nome}</strong>
-                            <br />
-                            <span className="text-muted-foreground text-[10px]">CRECI: {c.creci || "-"}</span>
+                          <td className="px-3 py-2.5">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <strong className="text-white">{c.nome}</strong>
+                              {c.codigoCorretor && (
+                                <span className="px-1.5 py-0.5 rounded bg-gold/15 border border-gold/40 text-gold font-mono text-[9px] font-extrabold">
+                                  {c.codigoCorretor}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-slate-400 text-[10px]">CRECI: {c.creci || "—"}</span>
                           </td>
-                          <td className="px-3 py-2 text-center hidden sm:table-cell text-muted-foreground">
-                            {c.whatsapp || "-"}
+                          <td className="px-3 py-2.5 hidden sm:table-cell text-gold/85">{c.email}</td>
+                          <td className="px-3 py-2.5 text-center hidden md:table-cell text-slate-300">
+                            {c.telefone || "—"}
                           </td>
-                          <td className="px-3 py-2 text-center hidden sm:table-cell text-muted-foreground">
-                            {c.dataCadastro || "-"}
-                          </td>
-                          <td className="px-3 py-2 text-center text-muted-foreground">••••••</td>
-                          <td className="px-3 py-2 text-center">
+                          <td className="px-3 py-2.5 text-center">
                             <button
+                              type="button"
+                              disabled={busyId === c.id}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                toggleStatus(c.id);
+                                handleToggleStatus(c);
                               }}
-                              className={`px-2 py-1 rounded text-[10px] font-bold ${
-                                c.status === "ativo"
-                                  ? "bg-green-600/20 text-green-600 border border-green-600/30"
-                                  : "bg-destructive/20 text-destructive border border-destructive/30"
+                              className={`px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase border transition-colors ${
+                                isActive
+                                  ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/25"
+                                  : "bg-red-500/15 text-red-300 border-red-500/40 hover:bg-red-500/25"
                               }`}
                             >
-                              {c.status === "ativo" ? "Ativo" : "Inativo"}
+                              {busyId === c.id ? "..." : isActive ? "Ativo" : "Bloqueado"}
                             </button>
+                          </td>
+                          <td className="px-3 py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
+                            {confirmDeleteId === c.id ? (
+                              <div className="inline-flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  disabled={busyId === c.id}
+                                  onClick={() => handleDeleteBroker(c.id)}
+                                  className="px-2 py-1 rounded bg-red-600 text-white text-[10px] font-bold uppercase"
+                                >
+                                  Excluir
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmDeleteId(null)}
+                                  className="px-2 py-1 rounded bg-slate-700 text-slate-200 text-[10px]"
+                                >
+                                  Não
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setConfirmDeleteId(c.id)}
+                                className="p-1.5 rounded-lg border border-red-500/35 text-red-400 hover:bg-red-500/15"
+                                title="Remover corretor"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </td>
                         </tr>
                         {expandedCorretor === c.id && (
                           <tr>
-                            <td colSpan={5} className="px-4 py-3 bg-muted/40 border-b border-gold/20">
+                            <td colSpan={5} className="px-4 py-3 bg-[#0b213d] border-b border-gold/20">
                               <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-[11px]">
                                 <p>
+                                  <strong className="text-gold/80">ID do Corretor:</strong>{" "}
+                                  <span className="font-mono font-bold text-gold">{c.codigoCorretor || "—"}</span>
+                                </p>
+                                <p>
                                   <strong className="text-gold/80">Nome:</strong>{" "}
-                                  <span className="text-foreground">{c.nome}</span>
+                                  <span className="text-white">{c.nome}</span>
+                                </p>
+                                <p>
+                                  <strong className="text-gold/80">E-mail Google:</strong>{" "}
+                                  <span className="text-gold/90">{c.email}</span>
                                 </p>
                                 <p>
                                   <strong className="text-gold/80">CPF:</strong>{" "}
-                                  <span className="text-foreground">{c.cpf}</span>
+                                  <span className="text-slate-200">{c.cpfCnpj || "—"}</span>
                                 </p>
                                 <p>
                                   <strong className="text-gold/80">CRECI:</strong>{" "}
-                                  <span className="text-foreground">{c.creci || "-"}</span>
+                                  <span className="text-slate-200">{c.creci || "—"}</span>
                                 </p>
                                 <p>
                                   <strong className="text-gold/80">WhatsApp:</strong>{" "}
-                                  <span className="text-foreground">{c.whatsapp || "-"}</span>
+                                  <span className="text-slate-200">{c.telefone || "—"}</span>
                                 </p>
                                 <p>
-                                  <strong className="text-gold/80">Email:</strong>{" "}
-                                  <span className="text-foreground">{c.email || "-"}</span>
+                                  <strong className="text-gold/80">Vínculo:</strong>{" "}
+                                  <span className="text-amber-300 font-semibold">
+                                    Imobiliária {c.imobiliariaCodigo ? `[${c.imobiliariaCodigo}]` : ""}
+                                  </span>
                                 </p>
                                 <p>
-                                  <strong className="text-gold/80">PIN:</strong>{" "}
-                                  <span className="text-foreground font-mono">••••••</span>
-                                </p>
-                                <p>
-                                  <strong className="text-gold/80">Data Cadastro:</strong>{" "}
-                                  <span className="text-foreground">{c.dataCadastro || "-"}</span>
+                                  <strong className="text-gold/80">Validade:</strong>{" "}
+                                  <span className="text-slate-200">{c.validadeAte || agency.validadeAte || "—"}</span>
                                 </p>
                                 <p>
                                   <strong className="text-gold/80">Status:</strong>{" "}
-                                  <span
-                                    className={
-                                      c.status === "ativo" ? "text-green-500 font-bold" : "text-destructive font-bold"
-                                    }
-                                  >
-                                    {c.status === "ativo" ? "Ativo" : "Inativo"}
+                                  <span className={isActive ? "text-emerald-400 font-bold" : "text-red-400 font-bold"}>
+                                    {isActive ? "Ativo e Liberado" : "Bloqueado"}
                                   </span>
                                 </p>
                               </div>
@@ -649,20 +878,24 @@ export default function PainelComercial({ isOpen, onClose }: PainelComercialProp
                           </tr>
                         )}
                       </React.Fragment>
-                    ))}
-                  </tbody>
-                </table>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            !showForm && (
+              <div className="text-center py-10 rounded-xl border border-dashed border-gold/25 bg-[#091c34] space-y-2">
+                <Users className="w-8 h-8 mx-auto text-gold/40" />
+                <p className="text-sm font-bold text-gold/80">Nenhum corretor vinculado cadastrado ainda</p>
+                <p className="text-xs text-slate-400">
+                  Clique no botão acima para cadastrar os corretores da sua imobiliária (até {limiteUsuarios}{" "}
+                  licenças).
+                </p>
               </div>
-            )}
-
-            {corretores.length === 0 && !showForm && (
-              <div className="text-center py-8 text-muted-foreground text-sm">
-                <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                Nenhum corretor cadastrado ainda.
-              </div>
-            )}
-          </div>
-        )}
+            )
+          )}
+        </div>
       </div>
     </div>
   );

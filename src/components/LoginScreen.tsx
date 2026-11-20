@@ -16,8 +16,11 @@ import {
   Loader2,
 } from "lucide-react";
 import DemoAdminPanel from "@/components/DemoAdminPanel";
+import AccessDatabasePanel from "@/components/AccessDatabasePanel";
 import SystemLogo from "@/components/SystemLogo";
 import { useFirebaseAuth } from "@/contexts/FirebaseContext";
+import { formatFirebaseAuthError, validatePersonalPasswordStrength } from "@/lib/firebase";
+import type { AccessAuthorizationResult } from "@/lib/accessDatabase";
 import PainelComercial from "@/components/PainelComercial"; // Painel Comercial modal
 import LgpdPanel from "@/components/LgpdPanel";
 import ForgotPasswordModal from "@/components/ForgotPasswordModal";
@@ -113,12 +116,13 @@ function PasswordInput({
         placeholder={placeholder}
         maxLength={maxLength}
         onKeyDown={onKeyDown}
-        className={`w-full pr-10 ${className} ${centerText ? "text-center" : ""}`}
+        className={`w-full pr-12 ${className} ${centerText ? "text-center" : ""}`}
       />
       <button
         type="button"
         onClick={() => setShow(!show)}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-gold/50 hover:text-gold transition-colors"
+        aria-label={show ? "Ocultar senha" : "Mostrar senha"}
+        className="absolute right-1 top-1/2 -translate-y-1/2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-gold/60 hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold transition-colors"
         tabIndex={-1}
       >
         {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -150,63 +154,72 @@ function FaleConoscoModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-[60] bg-black/60 flex items-end sm:items-center justify-center p-4"
+      className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-sm bg-card border-2 border-gold/40 rounded-xl p-5 shadow-2xl space-y-3 animate-fade-in mb-16 sm:mb-0"
+        className="w-full sm:max-w-md max-h-[90dvh] overflow-y-auto bg-card border-t-2 sm:border-2 border-gold/40 rounded-t-2xl sm:rounded-2xl p-5 sm:p-6 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:pb-6 shadow-2xl space-y-3 animate-fade-in"
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="w-10 h-1 rounded-full bg-border mx-auto mb-1 sm:hidden" aria-hidden="true" />
         <div className="flex items-center justify-between">
-          <h4 className="text-sm font-bold text-primary uppercase">Fale Conosco</h4>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
-            <X className="w-4 h-4" />
+          <h4 className="text-base font-bold text-primary">Fale Conosco</h4>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fechar"
+            className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <X className="w-5 h-5" />
           </button>
         </div>
         <input
           value={form.nome}
           onChange={(e) => setForm({ ...form, nome: e.target.value })}
           placeholder="Nome"
-          className="w-full px-3 py-2 text-xs rounded-lg border border-border bg-background text-foreground"
+          className="w-full min-h-[44px] px-3.5 py-2.5 text-base sm:text-sm rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-gold"
         />
         <input
           value={form.whatsapp}
           onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
           placeholder="WhatsApp"
-          className="w-full px-3 py-2 text-xs rounded-lg border border-border bg-background text-foreground"
+          className="w-full min-h-[44px] px-3.5 py-2.5 text-base sm:text-sm rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-gold"
         />
         <input
           value={form.email}
           onChange={(e) => setForm({ ...form, email: e.target.value })}
           placeholder="Email"
           type="email"
-          className="w-full px-3 py-2 text-xs rounded-lg border border-border bg-background text-foreground"
+          className="w-full min-h-[44px] px-3.5 py-2.5 text-base sm:text-sm rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-gold"
         />
-        <input
-          value={form.creci}
-          onChange={(e) => setForm({ ...form, creci: e.target.value })}
-          placeholder="CRECI"
-          className="w-full px-3 py-2 text-xs rounded-lg border border-border bg-background text-foreground"
-        />
-        <input
-          value={form.cidade}
-          onChange={(e) => setForm({ ...form, cidade: e.target.value })}
-          placeholder="Cidade"
-          className="w-full px-3 py-2 text-xs rounded-lg border border-border bg-background text-foreground"
-        />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <input
+            value={form.creci}
+            onChange={(e) => setForm({ ...form, creci: e.target.value })}
+            placeholder="CRECI"
+            className="w-full min-h-[44px] px-3.5 py-2.5 text-base sm:text-sm rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-gold"
+          />
+          <input
+            value={form.cidade}
+            onChange={(e) => setForm({ ...form, cidade: e.target.value })}
+            placeholder="Cidade"
+            className="w-full min-h-[44px] px-3.5 py-2.5 text-base sm:text-sm rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-gold"
+          />
+        </div>
         <textarea
           value={form.mensagem}
           onChange={(e) => setForm({ ...form, mensagem: e.target.value })}
           placeholder="Mensagem"
           rows={3}
-          className="w-full px-3 py-2 text-xs rounded-lg border border-border bg-background text-foreground resize-none"
+          className="w-full px-3.5 py-2.5 text-base sm:text-sm rounded-xl border border-border bg-background text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-gold"
         />
         <button
+          type="button"
           onClick={handleSend}
           disabled={sending}
-          className="w-full py-2.5 rounded-lg gold-gradient text-primary font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-1"
+          className="w-full min-h-[46px] py-2.5 rounded-xl gold-gradient text-primary font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
         >
-          <Send className="w-3 h-3" /> Enviar
+          <Send className="w-4 h-4" /> Enviar mensagem
         </button>
       </div>
     </div>
@@ -218,6 +231,10 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
   const [error, setError] = useState("");
   const [screen, setScreen] = useState<Screen>("login");
   const [demoAdminOpen, setDemoAdminOpen] = useState(false);
+  const [accessDbOpen, setAccessDbOpen] = useState(false);
+  const [accessDbInitialTab, setAccessDbInitialTab] = useState<"corretor_elite" | "administrativo">("administrativo");
+  const [corretorModalOpen, setCorretorModalOpen] = useState(false);
+  const [accessDeniedNotice, setAccessDeniedNotice] = useState<AccessAuthorizationResult | null>(null);
   const [painelComercialLoginOpen, setPainelComercialLoginOpen] = useState(false);
   const [masterInput, setMasterInput] = useState("");
   const [liberacaoInput, setLiberacaoInput] = useState("");
@@ -228,7 +245,23 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
   const [dataEnvioTemp, setDataEnvioTemp] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const { signInWithGoogle } = useFirebaseAuth();
+  const {
+    signInWithGoogle,
+    signInWithPassword,
+    registerWithPassword,
+    reloadAndVerifyEmail,
+    resendEmailVerificationLink,
+    sendPasswordReset,
+  } = useFirebaseAuth();
+  const [authTab, setAuthTab] = useState<"login" | "create_password">("login");
+  const [loginEmail, setLoginEmail] = useState("");
+  const [regEmail, setRegEmail] = useState("");
+  const [regPassword, setRegPassword] = useState("");
+  const [regConfirmPassword, setRegConfirmPassword] = useState("");
+  const [pendingVerifyEmail, setPendingVerifyEmail] = useState<string | null>(null);
+  const [infoNotice, setInfoNotice] = useState("");
+  const [verifyingEmail, setVerifyingEmail] = useState(false);
+  const [resendingEmail, setResendingEmail] = useState(false);
   const [eliteDiasRestantes, setEliteDiasRestantes] = useState(0);
   const [currentPinInput, setCurrentPinInput] = useState("");
   const [newPinInput, setNewPinInput] = useState("");
@@ -280,8 +313,8 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
       } else {
         throw new Error("Link de pagamento não gerado.");
       }
-    } catch (err: any) {
-      setSubError(err.message || "Erro ao gerar link de assinatura.");
+    } catch (err: unknown) {
+      setSubError(err instanceof Error ? err.message : "Erro ao gerar link de assinatura.");
     } finally {
       setSubLoading(false);
     }
@@ -315,9 +348,9 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
         resetSystem();
         setScreen("blocked");
       } else if (isFull) {
-        setStatusMsg("SISTEMA LIBERADO - ACESSO TOTAL");
+        setStatusMsg("SISTEMA LIBERADO - ACESSO AUTORIZADO");
       } else {
-        setStatusMsg(`Acesso Provisório: Restam ${diasRestantes} dias`);
+        setStatusMsg("Acesso exclusivo para Corretores e Clientes cadastrados após confirmação de pagamento em simuladorcorretorelite.com.br");
       }
     };
     init();
@@ -356,9 +389,15 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
 
   const handleGoogleLogin = async () => {
     setError("");
+    setAccessDeniedNotice(null);
     setGoogleLoading(true);
     try {
-      const { user } = await signInWithGoogle();
+      const { user, authorization } = await signInWithGoogle();
+      if (!authorization.authorized) {
+        setAccessDeniedNotice(authorization);
+        return;
+      }
+
       const email = (user.email || "").trim().toLowerCase();
       if (email) {
         try {
@@ -367,6 +406,7 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
           // Firebase Google session remains valid even if edge session is unreachable
         }
       }
+      setCorretorModalOpen(false);
       onLogin();
     } catch (err: unknown) {
       const code = (err as { code?: string })?.code || "";
@@ -383,9 +423,119 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
     }
   };
 
+  const handleCreatePersonalPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setInfoNotice("");
+    setAccessDeniedNotice(null);
+
+    const cleanEmail = regEmail.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes("@")) {
+      setError("Informe o e-mail vinculado ao seu contrato ou cadastrado pela sua imobiliária.");
+      return;
+    }
+    const strengthErr = validatePersonalPasswordStrength(regPassword);
+    if (strengthErr) {
+      setError(strengthErr);
+      return;
+    }
+    if (regPassword !== regConfirmPassword) {
+      setError("A confirmação de senha não confere. Digite a mesma senha nos dois campos.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const outcome = await registerWithPassword(cleanEmail, regPassword);
+      if (outcome.needsEmailVerification) {
+        setPendingVerifyEmail(cleanEmail);
+        setInfoNotice(outcome.authorization.message);
+        setRegPassword("");
+        setRegConfirmPassword("");
+      }
+    } catch (err) {
+      setError(formatFirebaseAuthError(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCheckEmailVerification = async () => {
+    setError("");
+    setInfoNotice("");
+    setAccessDeniedNotice(null);
+    setVerifyingEmail(true);
+    try {
+      const outcome = await reloadAndVerifyEmail();
+      if (!outcome) {
+        setError("Sessão expirada. Faça login novamente com seu e-mail e senha pessoal.");
+        setPendingVerifyEmail(null);
+        return;
+      }
+      if (outcome.needsEmailVerification) {
+        setInfoNotice(outcome.authorization.message);
+        return;
+      }
+      if (!outcome.authorization.authorized) {
+        setPendingVerifyEmail(null);
+        setAccessDeniedNotice(outcome.authorization);
+        return;
+      }
+      const email = (outcome.user.email || "").trim().toLowerCase();
+      if (email) {
+        try {
+          await createSession(email);
+        } catch {
+          // Firebase verified session remains active
+        }
+      }
+      setPendingVerifyEmail(null);
+      onLogin();
+    } catch (err) {
+      setError(formatFirebaseAuthError(err));
+    } finally {
+      setVerifyingEmail(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    setError("");
+    setResendingEmail(true);
+    try {
+      await resendEmailVerificationLink();
+      setInfoNotice("Novo e-mail de confirmação enviado! Verifique sua caixa de entrada e spam.");
+    } catch (err) {
+      setError(formatFirebaseAuthError(err));
+    } finally {
+      setResendingEmail(false);
+    }
+  };
+
+  const handleResetPersonalPassword = async () => {
+    const targetEmail = (loginEmail || regEmail).trim().toLowerCase();
+    if (!targetEmail || !targetEmail.includes("@")) {
+      setForgotOpen(true);
+      return;
+    }
+    setError("");
+    setInfoNotice("");
+    setLoading(true);
+    try {
+      await sendPasswordReset(targetEmail);
+      setInfoNotice(`Link de redefinição de senha pessoal enviado para ${targetEmail}.`);
+    } catch (err) {
+      setError(formatFirebaseAuthError(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // DEFAULT LOGIN
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAccessDeniedNotice(null);
+    setInfoNotice("");
+    setError("");
     if (isExpired && !isFull) {
       resetSystem();
       setScreen("blocked");
@@ -393,6 +543,7 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
     }
 
     const cleanPassword = password.trim();
+    const cleanEmail = loginEmail.trim().toLowerCase();
 
     // MASTER PASSWORD - Immediate unlimited access bypass (lourenco.consultorimob@gmail.com)
     if (cleanPassword === MASTER_PASSWORD) {
@@ -407,11 +558,49 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
       return;
     }
 
-    // Visitor mode — no server call, immediate access
+    // HYBRID PERSONAL PASSWORD LOGIN (Email + Personal Password via Firebase Auth + Firestore Contract Gate)
+    if (cleanEmail && cleanEmail.includes("@")) {
+      if (!cleanPassword) {
+        setError("Digite sua senha pessoal.");
+        return;
+      }
+      setLoading(true);
+      try {
+        const outcome = await signInWithPassword(cleanEmail, cleanPassword);
+        if (outcome.needsEmailVerification) {
+          setPendingVerifyEmail(cleanEmail);
+          setInfoNotice(outcome.authorization.message);
+          return;
+        }
+        if (!outcome.authorization.authorized) {
+          setAccessDeniedNotice(outcome.authorization);
+          return;
+        }
+        try {
+          await createSession(cleanEmail);
+        } catch {
+          // Firebase session remains active
+        }
+        setPendingVerifyEmail(null);
+        onLogin();
+      } catch (err) {
+        setError(formatFirebaseAuthError(err));
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // Block unregistered visitor access — service requires confirmed payment & registration
     if (cleanPassword === VISITOR_PASSWORD) {
-      setVisitorMode(true);
-      await createSession("visitante@elite4.local");
-      onLogin();
+      setAccessDeniedNotice({
+        authorized: false,
+        role: "none",
+        code: "not_registered",
+        message:
+          "Acesso de visitante desativado. Somente Corretores e Clientes cadastrados após confirmação de pagamento em simuladorcorretorelite.com.br podem acessar o serviço.",
+      });
+      setPassword("");
       return;
     }
 
@@ -962,138 +1151,133 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
   };
 
   const inputStyle =
-    "px-4 py-3 rounded-lg bg-primary/50 border border-gold/30 text-gold placeholder:text-gold/40 focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold transition-all";
+    "min-h-[46px] px-4 py-3 text-base sm:text-sm rounded-xl bg-primary/60 border border-gold/30 text-gold placeholder:text-gold/45 focus:outline-none focus:border-gold focus:ring-2 focus:ring-gold/40 transition-all";
   const inputStyleCard =
-    "px-4 py-3 text-lg font-bold tracking-widest border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-gold";
+    "min-h-[46px] px-4 py-3 text-base sm:text-lg font-bold tracking-widest border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-gold";
 
   // ═══ BLOCKED SCREEN ═══
   if (screen === "blocked") {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center elite-gradient overflow-y-auto">
-        <div className="flex flex-col items-center gap-4 px-6 w-full max-w-md py-8">
-          <h1 className="text-xl font-bold text-destructive">SISTEMA BLOQUEADO</h1>
-          <p className="text-gold/80 text-sm text-center">
-            O prazo de 03, 07, 21 e 364 dias expirou e o sistema foi resetado.
-          </p>
-          <div className="bg-primary/30 border border-gold/30 rounded-lg p-4 text-center text-sm space-y-2 w-full">
-            <p className="text-gold/80">Para liberação e fornecimento de nova senha definitiva:</p>
-            <p className="text-gold font-bold">Chave PIX: 00921557000165</p>
-            <p className="text-gold-bright font-bold text-lg">R$ {pixValue}</p>
-            <div className="text-gold/60 text-xs space-y-1 mt-3">
-              <p>R$ 69,90 - (Assinatura Mensal - WEB + APP + C.R.M.) - 31/12/2026</p>
-              <p>R$ 299,90 - (Assinatura Semestral WEB + BONUS C.R.M.) até 31/12/2026</p>
-              <p>R$ 479,90 - (Assinatura Anual - APP + Web) - 31/12/2026</p>
-              <p className="text-gold-bright font-semibold">
-                R$ 1.900,00 - (Assinatura Anual COMPLETA - WEB + APP + CRM + MKT + LUIZA IA) - 12 meses
+      <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain elite-gradient geometric-pattern p-4 sm:p-6">
+        <div className="min-h-full flex items-center justify-center py-6">
+          <div className="flex flex-col items-center gap-4 w-full max-w-md sm:max-w-lg bg-[#07162b]/90 backdrop-blur-md border border-gold/25 rounded-2xl p-5 sm:p-7 shadow-2xl">
+            <h1 className="text-lg sm:text-xl font-bold text-destructive">Sistema Bloqueado</h1>
+            <p className="text-gold/80 text-sm text-center">
+              O prazo de 03, 07, 21 e 364 dias expirou e o sistema foi resetado.
+            </p>
+            <div className="bg-primary/40 border border-gold/25 rounded-xl p-4 text-center text-sm space-y-2 w-full">
+              <p className="text-gold/80">Para liberação e fornecimento de nova senha definitiva:</p>
+              <p className="text-gold font-bold tabular-nums">Chave PIX: 00921557000165</p>
+              <p className="text-gold-bright font-bold text-lg tabular-nums">R$ {pixValue}</p>
+              <div className="text-gold/65 text-xs space-y-1.5 mt-3 text-left sm:text-center tabular-nums">
+                <p>R$ 69,90 — Assinatura Mensal (WEB + APP + C.R.M.) — 31/12/2026</p>
+                <p>R$ 299,90 — Assinatura Semestral (WEB + Bônus C.R.M.) até 31/12/2026</p>
+                <p>R$ 479,90 — Assinatura Anual (APP + Web) — 31/12/2026</p>
+                <p className="text-gold-bright font-semibold">
+                  R$ 1.900,00 — Assinatura Anual Completa (WEB + APP + CRM + MKT + LUIZA IA) — 12 meses
+                </p>
+              </div>
+              <p className="text-gold/45 text-[11px] mt-3">
+                INFORMETEC - Tecnologia em Informações Mercantis · CNPJ 00.921.557/0001-95
               </p>
             </div>
-            <p className="text-gold/40 text-[10px] mt-3">
-              INFORMETEC - TECNOLOGIA EM INFORMAÇÕES MERCANTIS - CNPJ 00.921.557/0001-95
-            </p>
-            <p className="text-gold/50 text-[10px]">
-              SIMULADOR CORRETOR ELITE 4.0 - ECOSSISTEMA DA TECNOLOGIA IMOBILIÁRIA{" "}
-            </p>
-          </div>
 
-          {/* Mercado Pago Subscription Checkout */}
-          <div className="bg-primary/30 border border-gold/30 rounded-lg p-4 text-center text-sm space-y-3 w-full">
-            <h2 className="text-sm font-bold text-gold uppercase tracking-wider">
-              Assinatura Online Mercado Pago
-            </h2>
-            <p className="text-gold/80 text-xs">
-              Se preferir, assine agora mesmo via cartão ou boleto e libere o sistema imediatamente.
-            </p>
-            
-            <div className="space-y-2 text-left">
-              <div>
-                <label className="block text-[10px] font-bold text-gold uppercase mb-1">E-mail de Cadastro/Faturamento</label>
-                <input
-                  type="email"
-                  value={subEmail}
-                  onChange={(e) => setSubEmail(e.target.value)}
-                  placeholder="Seu melhor e-mail"
-                  className="w-full px-3 py-2 text-xs rounded bg-primary/50 border border-gold/30 text-gold focus:outline-none focus:border-gold placeholder:text-gold/30"
-                />
+            {/* Mercado Pago Subscription Checkout */}
+            <div className="bg-primary/40 border border-gold/25 rounded-xl p-4 text-center text-sm space-y-3 w-full">
+              <h2 className="text-sm font-bold text-gold">Assinatura Online Mercado Pago</h2>
+              <p className="text-gold/80 text-xs">
+                Se preferir, assine agora mesmo via cartão ou boleto e libere o sistema imediatamente.
+              </p>
+
+              <div className="space-y-3 text-left">
+                <div>
+                  <label className="block text-xs font-medium text-gold/85 mb-1">E-mail de Cadastro/Faturamento</label>
+                  <input
+                    type="email"
+                    value={subEmail}
+                    onChange={(e) => setSubEmail(e.target.value)}
+                    placeholder="Seu melhor e-mail"
+                    className="w-full min-h-[44px] px-3.5 py-2 text-base sm:text-sm rounded-xl bg-primary/60 border border-gold/30 text-gold focus:outline-none focus:border-gold placeholder:text-gold/35"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gold/85 mb-1">Plano de Assinatura</label>
+                  <select
+                    value={subPlan}
+                    onChange={(e) => setSubPlan(e.target.value as "mensal" | "semestral" | "anual" | "anual_dev")}
+                    className="w-full min-h-[44px] px-3 py-2 text-base sm:text-sm rounded-xl bg-primary/60 border border-gold/30 text-gold focus:outline-none focus:border-gold"
+                  >
+                    <option value="mensal">Mensal — R$ 69,90/mês</option>
+                    <option value="semestral">Semestral — R$ 299,90/semestre</option>
+                    <option value="anual">Anual — R$ 479,90/ano</option>
+                    <option value="anual_dev">Anual Completa — R$ 1.900,00/ano</option>
+                  </select>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold text-gold uppercase mb-1">Escolha o Plano de Assinatura</label>
-                <select
-                  value={subPlan}
-                  onChange={(e) => setSubPlan(e.target.value as any)}
-                  className="w-full px-2 py-2 text-xs rounded bg-primary/50 border border-gold/30 text-gold focus:outline-none focus:border-gold"
-                >
-                  <option value="mensal">Mensal — R$ 69,90/mês</option>
-                  <option value="semestral">Semestral — R$ 299,90/semestre</option>
-                  <option value="anual">Anual — R$ 479,90/ano</option>
-                  <option value="anual_dev">Anual Completa — R$ 1.900,00/ano</option>
-                </select>
-              </div>
+              {subError && <p className="text-destructive text-xs font-semibold">{subError}</p>}
+
+              <button
+                onClick={handleMercadoPagoSubscription}
+                disabled={subLoading}
+                className="w-full min-h-[46px] py-2.5 rounded-xl gold-gradient text-primary font-bold text-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+              >
+                {subLoading ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></span>
+                    Processando...
+                  </>
+                ) : (
+                  "Contratar Assinatura"
+                )}
+              </button>
             </div>
 
-            {subError && <p className="text-destructive text-[11px] font-semibold">{subError}</p>}
+            <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+              <button
+                onClick={() => setScreen("master-modal")}
+                className="w-full min-h-[44px] px-4 py-2.5 rounded-xl border border-gold/35 text-gold text-xs font-bold hover:bg-gold/10 transition-colors"
+              >
+                Inserir Senha Master
+              </button>
+              <button
+                onClick={() => {
+                  const code = prompt("Digite a senha de validação recebida:");
+                  if (!code) return;
+                  const cleanCode = code.trim();
+                  if (!cleanCode) return;
+                  setLoading(true);
+                  checkLiberationWithRetry(cleanCode).then((res) => {
+                    setLoading(false);
+                    if (res.valid && res.accessLevel === "liberation_available") {
+                      setSenhaLiberacao(cleanCode);
+                      setFullVersion(true);
+                      setDataEnvioTemp(new Date().toLocaleDateString("pt-BR"));
+                      setPendingLoginPassword(cleanCode);
+                      setPendingAccessLevel("master");
+                      setScreen("email-pin-register");
+                    } else if (!res.valid && res.accessLevel === "already_used") {
+                      alert("Esta senha de validação já foi utilizada.");
+                    } else {
+                      alert("Senha de validação inválida ou não registrada.");
+                    }
+                  });
+                }}
+                disabled={loading}
+                className="w-full min-h-[44px] px-4 py-2.5 rounded-xl border border-gold/35 text-gold text-xs font-bold hover:bg-gold/10 transition-colors"
+              >
+                {loading ? "Verificando..." : "Senha de Validação"}
+              </button>
+            </div>
 
             <button
-              onClick={handleMercadoPagoSubscription}
-              disabled={subLoading}
-              className="w-full py-2 rounded gold-gradient text-primary font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+              onClick={() => location.reload()}
+              className="w-full min-h-[46px] py-2.5 rounded-xl gold-gradient text-primary font-bold text-sm hover:opacity-90 transition-opacity"
             >
-              {subLoading ? (
-                <>
-                  <span className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin"></span>
-                  Processando...
-                </>
-              ) : (
-                "Contratar Assinatura"
-              )}
+              Atualizar
             </button>
           </div>
-
-          <button
-            onClick={() => setScreen("master-modal")}
-            className="w-full py-2 rounded-lg border border-gold/30 text-gold text-xs uppercase font-bold hover:bg-gold/10 transition-colors mt-2"
-          >
-            Inserir Senha Master
-          </button>
-          <button
-            onClick={() => {
-              // Direct validation code entry for blocked users
-              const code = prompt("Digite a senha de validação recebida:");
-              if (!code) return;
-
-              // AQUI ESTÁ A CORREÇÃO: Mantém os pontos e tira só espaços vazios
-              const cleanCode = code.trim();
-
-              if (!cleanCode) return;
-              setLoading(true);
-              checkLiberationWithRetry(cleanCode).then((res) => {
-                setLoading(false);
-                if (res.valid && res.accessLevel === "liberation_available") {
-                  setSenhaLiberacao(cleanCode);
-                  setFullVersion(true);
-                  setDataEnvioTemp(new Date().toLocaleDateString("pt-BR"));
-                  setPendingLoginPassword(cleanCode);
-                  setPendingAccessLevel("master");
-                  setScreen("email-pin-register");
-                } else if (!res.valid && res.accessLevel === "already_used") {
-                  alert("Esta senha de validação já foi utilizada.");
-                } else {
-                  alert("Senha de validação inválida ou não registrada.");
-                }
-              });
-            }}
-            disabled={loading}
-            className="w-full py-2 rounded-lg border border-gold/30 text-gold text-xs uppercase font-bold hover:bg-gold/10 transition-colors"
-          >
-            {loading ? "Verificando..." : "Senha Validação"}
-          </button>
-
-          <button
-            onClick={() => location.reload()}
-            className="w-full py-2.5 rounded-lg gold-gradient text-primary font-bold uppercase tracking-wider hover:opacity-90 transition-opacity"
-          >
-            Atualizar
-          </button>
         </div>
       </div>
     );
@@ -1102,64 +1286,62 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
   // ═══ STEP 1: MASTER MODAL ═══
   if (screen === "master-modal") {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center elite-gradient">
-        <div className="bg-card rounded-xl border-2 border-gold/50 p-6 w-full max-w-xs text-center space-y-4">
-          <h3 className="text-primary font-bold uppercase text-sm">Digite Senha Master</h3>
-          <PasswordInput
-            value={masterInput}
-            onChange={(v) => setMasterInput(formatMasterPass(v))}
-            placeholder="xxx.xxx.xxx.xxx"
-            maxLength={15}
-            className={inputStyleCard}
-          />
-          <button
-            onClick={handleMasterValidate}
-            disabled={loading}
-            className="w-full py-3 rounded-lg bg-primary text-gold font-bold uppercase hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
-            {loading ? "Validando..." : "Validar Acesso"}
-          </button>
-          <button
-            onClick={() => {
-              // Direct validation code entry for blocked users
-              const code = prompt("Digite a senha de validação recebida:");
-              if (!code) return;
-
-              // MANTÉM OS PONTOS (Remove apenas espaços antes/depois)
-              const cleanCode = code.trim();
-
-              if (!cleanCode) return;
-              setLoading(true);
-              checkLiberationWithRetry(cleanCode).then((res) => {
-                setLoading(false);
-                if (res.valid && res.accessLevel === "liberation_available") {
-                  setSenhaLiberacao(cleanCode);
-                  setFullVersion(true);
-                  setDataEnvioTemp(new Date().toLocaleDateString("pt-BR"));
-                  setPendingLoginPassword(cleanCode);
-                  setPendingAccessLevel("master");
-                  setScreen("email-pin-register");
-                } else if (!res.valid && res.accessLevel === "already_used") {
-                  alert("Esta senha de validação já foi utilizada.");
-                } else {
-                  alert("Senha de validação inválida ou não registrada.");
-                }
-              });
-            }}
-            disabled={loading}
-            className="w-full py-2 rounded-lg border border-gold/30 text-gold text-xs uppercase font-bold hover:bg-gold/10 transition-colors"
-          >
-            {loading ? "Verificando..." : "Senha Validação"}
-          </button>
-          <button
-            onClick={() => {
-              setScreen("login");
-              setMasterInput("");
-            }}
-            className="w-full py-2 rounded-lg bg-muted text-muted-foreground text-xs uppercase hover:opacity-80"
-          >
-            Cancelar
-          </button>
+      <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain elite-gradient geometric-pattern p-4 sm:p-6">
+        <div className="min-h-full flex items-center justify-center py-4">
+          <div className="bg-card rounded-2xl border-2 border-gold/50 p-5 sm:p-7 w-full max-w-sm sm:max-w-md text-center space-y-4 shadow-2xl">
+            <h3 className="text-primary font-bold text-base">Digite a Senha Master</h3>
+            <PasswordInput
+              value={masterInput}
+              onChange={(v) => setMasterInput(formatMasterPass(v))}
+              placeholder="xxx.xxx.xxx.xxx"
+              maxLength={15}
+              className={inputStyleCard}
+            />
+            <button
+              onClick={handleMasterValidate}
+              disabled={loading}
+              className="w-full min-h-[46px] py-3 rounded-xl bg-primary text-gold font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {loading ? "Validando..." : "Validar Acesso"}
+            </button>
+            <button
+              onClick={() => {
+                const code = prompt("Digite a senha de validação recebida:");
+                if (!code) return;
+                const cleanCode = code.trim();
+                if (!cleanCode) return;
+                setLoading(true);
+                checkLiberationWithRetry(cleanCode).then((res) => {
+                  setLoading(false);
+                  if (res.valid && res.accessLevel === "liberation_available") {
+                    setSenhaLiberacao(cleanCode);
+                    setFullVersion(true);
+                    setDataEnvioTemp(new Date().toLocaleDateString("pt-BR"));
+                    setPendingLoginPassword(cleanCode);
+                    setPendingAccessLevel("master");
+                    setScreen("email-pin-register");
+                  } else if (!res.valid && res.accessLevel === "already_used") {
+                    alert("Esta senha de validação já foi utilizada.");
+                  } else {
+                    alert("Senha de validação inválida ou não registrada.");
+                  }
+                });
+              }}
+              disabled={loading}
+              className="w-full min-h-[44px] py-2.5 rounded-xl border border-gold/40 text-primary text-xs font-bold hover:bg-gold/10 transition-colors"
+            >
+              {loading ? "Verificando..." : "Senha de Validação"}
+            </button>
+            <button
+              onClick={() => {
+                setScreen("login");
+                setMasterInput("");
+              }}
+              className="w-full min-h-[44px] py-2.5 rounded-xl bg-muted text-muted-foreground text-xs font-semibold hover:opacity-80"
+            >
+              Cancelar
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1168,35 +1350,37 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
   // ═══ STEP 2: SENHA DE LIBERAÇÃO ═══
   if (screen === "liberacao") {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center elite-gradient">
-        <div className="bg-card rounded-xl border-2 border-gold/50 p-6 w-full max-w-xs text-center space-y-4">
-          <div className="text-center">
-            <h3 className="text-primary font-bold uppercase text-sm">Acesso Master Validado</h3>
-            <p className="text-muted-foreground text-xs mt-1">Insira a senha de liberação para este novo envio</p>
+      <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain elite-gradient geometric-pattern p-4 sm:p-6">
+        <div className="min-h-full flex items-center justify-center py-4">
+          <div className="bg-card rounded-2xl border-2 border-gold/50 p-5 sm:p-7 w-full max-w-sm sm:max-w-md text-center space-y-4 shadow-2xl">
+            <div className="text-center">
+              <h3 className="text-primary font-bold text-base">Acesso Master Validado</h3>
+              <p className="text-muted-foreground text-xs mt-1">Insira a senha de liberação para este novo envio</p>
+            </div>
+            <PasswordInput
+              value={liberacaoInput}
+              onChange={setLiberacaoInput}
+              placeholder="Senha de Liberação"
+              maxLength={50}
+              className={inputStyleCard}
+            />
+            <button
+              onClick={handleLiberacaoSave}
+              disabled={gravandoValidacao}
+              className="w-full min-h-[46px] py-3 rounded-xl bg-primary text-gold font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {gravandoValidacao ? "Gravando..." : "Confirmar Senha"}
+            </button>
+            <button
+              onClick={() => {
+                setScreen("login");
+                setLiberacaoInput("");
+              }}
+              className="w-full min-h-[44px] py-2.5 rounded-xl bg-muted text-muted-foreground text-xs font-semibold hover:opacity-80"
+            >
+              Cancelar
+            </button>
           </div>
-          <PasswordInput
-            value={liberacaoInput}
-            onChange={setLiberacaoInput}
-            placeholder="Senha de Liberação"
-            maxLength={50}
-            className={inputStyleCard}
-          />
-          <button
-            onClick={handleLiberacaoSave}
-            disabled={gravandoValidacao}
-            className="w-full py-3 rounded-lg bg-primary text-gold font-bold uppercase hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
-            {gravandoValidacao ? "Gravando..." : "Confirmar Senha"}
-          </button>
-          <button
-            onClick={() => {
-              setScreen("login");
-              setLiberacaoInput("");
-            }}
-            className="w-full py-2 rounded-lg bg-muted text-muted-foreground text-xs uppercase hover:opacity-80"
-          >
-            Cancelar
-          </button>
         </div>
       </div>
     );
@@ -1205,34 +1389,36 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
   // ═══ STEP 3: CONFIRMAR SENHA DE LIBERAÇÃO ═══
   if (screen === "confirm-lib") {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center elite-gradient">
-        <div className="bg-card rounded-xl border-2 border-gold/50 p-6 w-full max-w-xs text-center space-y-4">
-          <div className="text-center">
-            <h3 className="text-primary font-bold uppercase text-sm">Confirme a Senha de Liberação</h3>
-            <p className="text-muted-foreground text-xs mt-1">Digite novamente a senha gravada para confirmar</p>
+      <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain elite-gradient geometric-pattern p-4 sm:p-6">
+        <div className="min-h-full flex items-center justify-center py-4">
+          <div className="bg-card rounded-2xl border-2 border-gold/50 p-5 sm:p-7 w-full max-w-sm sm:max-w-md text-center space-y-4 shadow-2xl">
+            <div className="text-center">
+              <h3 className="text-primary font-bold text-base">Confirme a Senha de Liberação</h3>
+              <p className="text-muted-foreground text-xs mt-1">Digite novamente a senha gravada para confirmar</p>
+            </div>
+            <PasswordInput
+              value={confirmLibInput}
+              onChange={setConfirmLibInput}
+              placeholder="Repita a Senha de Liberação"
+              maxLength={50}
+              className={inputStyleCard}
+            />
+            <button
+              onClick={handleConfirmLiberacao}
+              className="w-full min-h-[46px] py-3 rounded-xl bg-primary text-gold font-bold text-sm hover:opacity-90 transition-opacity"
+            >
+              Confirmar
+            </button>
+            <button
+              onClick={() => {
+                setScreen("login");
+                setConfirmLibInput("");
+              }}
+              className="w-full min-h-[44px] py-2.5 rounded-xl bg-muted text-muted-foreground text-xs font-semibold hover:opacity-80"
+            >
+              Cancelar
+            </button>
           </div>
-          <PasswordInput
-            value={confirmLibInput}
-            onChange={setConfirmLibInput}
-            placeholder="Repita a Senha de Liberação"
-            maxLength={50}
-            className={inputStyleCard}
-          />
-          <button
-            onClick={handleConfirmLiberacao}
-            className="w-full py-3 rounded-lg bg-primary text-gold font-bold uppercase hover:opacity-90 transition-opacity"
-          >
-            Confirmar
-          </button>
-          <button
-            onClick={() => {
-              setScreen("login");
-              setConfirmLibInput("");
-            }}
-            className="w-full py-2 rounded-lg bg-muted text-muted-foreground text-xs uppercase hover:opacity-80"
-          >
-            Cancelar
-          </button>
         </div>
       </div>
     );
@@ -1240,76 +1426,78 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
 
   if (screen === "lib-saved") {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center elite-gradient">
-        <div className="flex flex-col items-center gap-6 px-6 w-full max-w-sm">
-          <div className="text-center">
-            <SystemLogo
-              alt="Elite"
-              className="w-24 h-24 mx-auto mb-3 drop-shadow-lg rounded-2xl object-cover border border-gold/40"
-            />
-            <h1 className="text-lg font-bold text-gold uppercase">Senha Gravada ✅</h1>
-            <p className="text-gold-bright text-sm mt-1">A senha de liberação foi salva com sucesso!</p>
-          </div>
-          <div className="w-full bg-primary/30 border border-gold/30 rounded-lg p-4 text-center space-y-2">
-            <p className="text-gold/80 text-sm">Senha gravada:</p>
-            <p className="text-gold font-bold text-lg tracking-widest">{senhaLiberacaoTemp}</p>
-            <p className="text-gold/50 text-xs mt-2">
-              Envie esta senha ao cliente. Ao digitá-la, o sistema pedirá que ele crie um PIN de 6 dígitos.
-            </p>
-          </div>
-          {validacaoGravada && (
-            <div className="w-full bg-green-900/30 border border-green-500/40 rounded-lg p-3 text-center animate-fade-in">
-              <p className="text-green-400 text-xs font-bold">✅ Validação gravada com sucesso!</p>
-              <p className="text-green-400/70 text-[10px] mt-1">O usuário pode usar esta senha em qualquer terminal.</p>
+      <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain elite-gradient geometric-pattern p-4 sm:p-6">
+        <div className="min-h-full flex items-center justify-center py-4">
+          <div className="flex flex-col items-center gap-5 w-full max-w-sm sm:max-w-md bg-[#07162b]/90 backdrop-blur-md border border-gold/25 rounded-2xl p-5 sm:p-7 shadow-2xl">
+            <div className="text-center">
+              <SystemLogo
+                alt="Elite"
+                className="w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-3 drop-shadow-lg rounded-2xl object-cover border border-gold/40"
+              />
+              <h1 className="text-lg font-bold text-gold">Senha Gravada</h1>
+              <p className="text-gold-bright text-sm mt-1">A senha de liberação foi salva com sucesso.</p>
             </div>
-          )}
-          <button
-            onClick={async () => {
-              setGravandoValidacao(true);
-              try {
-                const persistResult = await persistLiberationValidation(senhaLiberacaoTemp);
-                if (!persistResult.ok) {
-                  alert(persistResult.message || "Erro ao gravar validação.");
-                  return;
-                }
+            <div className="w-full bg-primary/40 border border-gold/25 rounded-xl p-4 text-center space-y-2">
+              <p className="text-gold/80 text-sm">Senha gravada:</p>
+              <p className="text-gold font-bold text-lg tracking-widest tabular-nums">{senhaLiberacaoTemp}</p>
+              <p className="text-gold/60 text-xs mt-2">
+                Envie esta senha ao cliente. Ao digitá-la, o sistema pedirá que ele crie um PIN de 6 dígitos.
+              </p>
+            </div>
+            {validacaoGravada && (
+              <div className="w-full bg-emerald-950/60 border border-emerald-500/40 rounded-xl p-3 text-center animate-fade-in">
+                <p className="text-emerald-300 text-xs font-bold">Validação gravada com sucesso</p>
+                <p className="text-emerald-200/75 text-xs mt-1">O usuário pode usar esta senha em qualquer terminal.</p>
+              </div>
+            )}
+            <button
+              onClick={async () => {
+                setGravandoValidacao(true);
+                try {
+                  const persistResult = await persistLiberationValidation(senhaLiberacaoTemp);
+                  if (!persistResult.ok) {
+                    alert(persistResult.message || "Erro ao gravar validação.");
+                    return;
+                  }
 
-                setValidacaoGravada(true);
-                alert(
-                  persistResult.message
-                    ? `✅ Senha de validação gravada com sucesso!\n\n${persistResult.message}`
-                    : "✅ Senha de validação gravada com sucesso!",
-                );
-              } catch (err: unknown) {
-                console.error("[GravarValidacao] Exception:", err);
-                alert("Erro ao gravar validação: " + (err instanceof Error ? err.message : String(err)));
-              } finally {
-                setGravandoValidacao(false);
-              }
-            }}
-            disabled={gravandoValidacao || validacaoGravada}
-            className="w-full py-3 rounded-lg gold-gradient text-primary font-bold uppercase tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
-            {gravandoValidacao ? "Gravando..." : validacaoGravada ? "Validação Gravada ✅" : "Gravar Validação"}
-          </button>
-          <button
-            onClick={() => {
-              setPendingLoginPassword(senhaLiberacaoTemp);
-              setPendingAccessLevel("master");
-              setScreen("email-pin-register");
-            }}
-            className="w-full py-3 rounded-lg border border-gold/30 text-gold font-bold uppercase hover:bg-gold/10 transition-colors"
-          >
-            Cadastrar Email e PIN Agora
-          </button>
-          <button
-            onClick={() => {
-              setScreen("login");
-              location.reload();
-            }}
-            className="w-full py-2 rounded-lg bg-muted text-muted-foreground text-xs uppercase hover:opacity-80"
-          >
-            Cancelar
-          </button>
+                  setValidacaoGravada(true);
+                  alert(
+                    persistResult.message
+                      ? `✅ Senha de validação gravada com sucesso!\n\n${persistResult.message}`
+                      : "✅ Senha de validação gravada com sucesso!",
+                  );
+                } catch (err: unknown) {
+                  console.error("[GravarValidacao] Exception:", err);
+                  alert("Erro ao gravar validação: " + (err instanceof Error ? err.message : String(err)));
+                } finally {
+                  setGravandoValidacao(false);
+                }
+              }}
+              disabled={gravandoValidacao || validacaoGravada}
+              className="w-full min-h-[46px] py-3 rounded-xl gold-gradient text-primary font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {gravandoValidacao ? "Gravando..." : validacaoGravada ? "Validação Gravada" : "Gravar Validação"}
+            </button>
+            <button
+              onClick={() => {
+                setPendingLoginPassword(senhaLiberacaoTemp);
+                setPendingAccessLevel("master");
+                setScreen("email-pin-register");
+              }}
+              className="w-full min-h-[46px] py-3 rounded-xl border border-gold/35 text-gold font-bold text-sm hover:bg-gold/10 transition-colors"
+            >
+              Cadastrar Email e PIN Agora
+            </button>
+            <button
+              onClick={() => {
+                setScreen("login");
+                location.reload();
+              }}
+              className="w-full min-h-[44px] py-2.5 rounded-xl bg-muted text-muted-foreground text-xs font-semibold hover:opacity-80"
+            >
+              Voltar ao Login
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1318,32 +1506,34 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
   // ═══ STEP 4: NEW 6-DIGIT PASSWORD ═══
   if (screen === "new-user") {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center elite-gradient">
-        <div className="flex flex-col items-center gap-6 px-6 w-full max-w-sm">
-          <div className="text-center">
-            <SystemLogo
-              alt="Elite"
-              className="w-24 h-24 mx-auto mb-3 drop-shadow-lg rounded-2xl object-cover border border-gold/40"
-            />
-            <h1 className="text-lg font-bold text-gold uppercase">Sistema Liberado</h1>
-            <p className="text-gold-bright text-sm mt-1">Acesso total confirmado!</p>
-          </div>
-          <div className="w-full space-y-4 bg-primary/30 border border-gold/30 rounded-lg p-4">
-            <p className="text-gold/80 text-sm text-center">Configurar nova senha de usuário (6 dígitos)</p>
-            <PasswordInput
-              value={newPassInput}
-              onChange={setNewPassInput}
-              maxLength={6}
-              placeholder="Nova Senha (6 dígitos)"
-              numericOnly
-              className="px-4 py-3 rounded-lg bg-primary/50 border border-gold/30 text-gold text-lg tracking-widest font-bold placeholder:text-gold/40 focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold"
-            />
-            <button
-              onClick={handleNewPass}
-              className="w-full py-3 rounded-lg gold-gradient text-primary font-bold uppercase tracking-wider hover:opacity-90 transition-opacity"
-            >
-              Salvar Nova Senha
-            </button>
+      <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain elite-gradient geometric-pattern p-4 sm:p-6">
+        <div className="min-h-full flex items-center justify-center py-4">
+          <div className="flex flex-col items-center gap-5 w-full max-w-sm sm:max-w-md bg-[#07162b]/90 backdrop-blur-md border border-gold/25 rounded-2xl p-5 sm:p-7 shadow-2xl">
+            <div className="text-center">
+              <SystemLogo
+                alt="Elite"
+                className="w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-3 drop-shadow-lg rounded-2xl object-cover border border-gold/40"
+              />
+              <h1 className="text-lg font-bold text-gold">Sistema Liberado</h1>
+              <p className="text-gold-bright text-sm mt-1">Acesso total confirmado</p>
+            </div>
+            <div className="w-full space-y-4">
+              <p className="text-gold/80 text-sm text-center">Configurar nova senha de usuário (6 dígitos)</p>
+              <PasswordInput
+                value={newPassInput}
+                onChange={setNewPassInput}
+                maxLength={6}
+                placeholder="Nova Senha (6 dígitos)"
+                numericOnly
+                className="min-h-[46px] px-4 py-3 rounded-xl bg-primary/60 border border-gold/30 text-gold text-base sm:text-lg tracking-widest font-bold placeholder:text-gold/40 focus:outline-none focus:border-gold focus:ring-2 focus:ring-gold/40"
+              />
+              <button
+                onClick={handleNewPass}
+                className="w-full min-h-[46px] py-3 rounded-xl gold-gradient text-primary font-bold text-sm hover:opacity-90 transition-opacity"
+              >
+                Salvar Nova Senha
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1353,30 +1543,34 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
   // ═══ ELITE WELCOME - DIAS RESTANTES ═══
   if (screen === "elite-welcome") {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center elite-gradient">
-        <div className="flex flex-col items-center gap-6 px-6 w-full max-w-sm">
-          <div className="text-center">
-            <SystemLogo
-              alt="Elite"
-              className="w-24 h-24 mx-auto mb-3 drop-shadow-lg rounded-2xl object-cover border border-gold/40"
-            />
-            <h1 className="text-lg font-bold text-gold uppercase">Acesso ELITE Liberado</h1>
-          </div>
-          <div className="w-full bg-primary/30 border border-gold/30 rounded-lg p-5 text-center space-y-3">
-            <p className="text-gold/80 text-sm">Sua licença ELITE está ativa</p>
-            <div className={`text-3xl font-bold ${eliteDiasRestantes <= 3 ? "text-destructive" : "text-gold-bright"}`}>
-              {eliteDiasRestantes} {eliteDiasRestantes === 1 ? "dia restante" : "dias restantes"}
+      <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain elite-gradient geometric-pattern p-4 sm:p-6">
+        <div className="min-h-full flex items-center justify-center py-4">
+          <div className="flex flex-col items-center gap-5 w-full max-w-sm sm:max-w-md bg-[#07162b]/90 backdrop-blur-md border border-gold/25 rounded-2xl p-5 sm:p-7 shadow-2xl">
+            <div className="text-center">
+              <SystemLogo
+                alt="Elite"
+                className="w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-3 drop-shadow-lg rounded-2xl object-cover border border-gold/40"
+              />
+              <h1 className="text-lg font-bold text-gold">Acesso Elite Liberado</h1>
             </div>
-            {eliteDiasRestantes <= 3 && (
-              <p className="text-destructive text-xs font-bold">⚠ Sua licença está prestes a expirar!</p>
-            )}
+            <div className="w-full bg-primary/40 border border-gold/25 rounded-xl p-5 text-center space-y-2.5">
+              <p className="text-gold/80 text-sm">Sua licença está ativa</p>
+              <div
+                className={`text-3xl font-bold tabular-nums ${eliteDiasRestantes <= 3 ? "text-destructive" : "text-gold-bright"}`}
+              >
+                {eliteDiasRestantes} {eliteDiasRestantes === 1 ? "dia restante" : "dias restantes"}
+              </div>
+              {eliteDiasRestantes <= 3 && (
+                <p className="text-destructive text-xs font-bold">Sua licença está prestes a expirar.</p>
+              )}
+            </div>
+            <button
+              onClick={onLogin}
+              className="w-full min-h-[48px] py-3 rounded-xl gold-gradient text-primary font-bold text-sm hover:opacity-90 transition-opacity"
+            >
+              Acessar Simulador
+            </button>
           </div>
-          <button
-            onClick={onLogin}
-            className="w-full py-3 rounded-lg gold-gradient text-primary font-bold uppercase tracking-wider hover:opacity-90 transition-opacity"
-          >
-            Acessar Simulador
-          </button>
         </div>
       </div>
     );
@@ -1385,44 +1579,46 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
   // ═══ ALTERAR PIN DE 6 DÍGITOS ═══
   if (screen === "change-pin") {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center elite-gradient">
-        <div className="bg-card rounded-xl border-2 border-gold/50 p-6 w-full max-w-xs text-center space-y-4">
-          <h3 className="text-primary font-bold uppercase text-sm">Alterar Senha de 6 Dígitos</h3>
-          <p className="text-muted-foreground text-xs">Digite a senha atual e a nova senha</p>
-          <PasswordInput
-            value={currentPinInput}
-            onChange={setCurrentPinInput}
-            placeholder="Senha atual (6 dígitos)"
-            maxLength={6}
-            numericOnly
-            className={inputStyleCard}
-          />
-          <PasswordInput
-            value={newPinInput}
-            onChange={setNewPinInput}
-            placeholder="Nova senha (6 dígitos)"
-            maxLength={6}
-            numericOnly
-            className={inputStyleCard}
-          />
-          {pinError && <p className="text-destructive text-xs">{pinError}</p>}
-          <button
-            onClick={handleChangePin}
-            className="w-full py-3 rounded-lg bg-primary text-gold font-bold uppercase hover:opacity-90 transition-opacity"
-          >
-            Confirmar Alteração
-          </button>
-          <button
-            onClick={() => {
-              setScreen("login");
-              setCurrentPinInput("");
-              setNewPinInput("");
-              setPinError("");
-            }}
-            className="w-full py-2 rounded-lg bg-muted text-muted-foreground text-xs uppercase hover:opacity-80"
-          >
-            Cancelar
-          </button>
+      <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain elite-gradient geometric-pattern p-4 sm:p-6">
+        <div className="min-h-full flex items-center justify-center py-4">
+          <div className="bg-card rounded-2xl border-2 border-gold/50 p-5 sm:p-7 w-full max-w-sm sm:max-w-md text-center space-y-4 shadow-2xl">
+            <h3 className="text-primary font-bold text-base">Alterar Senha de 6 Dígitos</h3>
+            <p className="text-muted-foreground text-xs">Digite a senha atual e a nova senha</p>
+            <PasswordInput
+              value={currentPinInput}
+              onChange={setCurrentPinInput}
+              placeholder="Senha atual (6 dígitos)"
+              maxLength={6}
+              numericOnly
+              className={inputStyleCard}
+            />
+            <PasswordInput
+              value={newPinInput}
+              onChange={setNewPinInput}
+              placeholder="Nova senha (6 dígitos)"
+              maxLength={6}
+              numericOnly
+              className={inputStyleCard}
+            />
+            {pinError && <p className="text-destructive text-xs font-medium">{pinError}</p>}
+            <button
+              onClick={handleChangePin}
+              className="w-full min-h-[46px] py-3 rounded-xl bg-primary text-gold font-bold text-sm hover:opacity-90 transition-opacity"
+            >
+              Confirmar Alteração
+            </button>
+            <button
+              onClick={() => {
+                setScreen("login");
+                setCurrentPinInput("");
+                setNewPinInput("");
+                setPinError("");
+              }}
+              className="w-full min-h-[44px] py-2.5 rounded-xl bg-muted text-muted-foreground text-xs font-semibold hover:opacity-80"
+            >
+              Cancelar
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1431,58 +1627,60 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
   // ═══ EMAIL + PIN REGISTER (combined) ═══
   if (screen === "email-pin-register") {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center elite-gradient overflow-y-auto">
-        <div className="bg-card rounded-xl border-2 border-gold/50 p-6 w-full max-w-xs text-center space-y-4 my-8">
-          <div className="text-center">
-            <SystemLogo
-              alt="Elite"
-              className="w-20 h-20 mx-auto mb-2 drop-shadow-lg rounded-2xl object-cover border border-gold/40"
-            />
-            <h3 className="text-primary font-bold uppercase text-sm">Cadastro de Acesso</h3>
-            <p className="text-muted-foreground text-xs mt-1">
-              Cadastre seu email e crie sua senha de 6 dígitos para finalizar a ativação.
-            </p>
-          </div>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-[10px] font-bold text-gold uppercase mb-1 text-left">Email</label>
-              <input
-                type="email"
-                value={emailPinRegInput}
-                onChange={(e) => {
-                  setEmailPinRegInput(e.target.value);
-                  setEmailPinError("");
-                }}
-                placeholder="seu.email@exemplo.com"
-                maxLength={100}
-                className="w-full px-3 py-2.5 border border-gold/30 rounded-lg text-sm bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-gold placeholder:text-muted-foreground"
+      <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain elite-gradient geometric-pattern p-4 sm:p-6">
+        <div className="min-h-full flex items-center justify-center py-4">
+          <div className="bg-card rounded-2xl border-2 border-gold/50 p-5 sm:p-7 w-full max-w-sm sm:max-w-md text-center space-y-4 shadow-2xl">
+            <div className="text-center">
+              <SystemLogo
+                alt="Elite"
+                className="w-20 h-20 mx-auto mb-2 drop-shadow-lg rounded-2xl object-cover border border-gold/40"
               />
+              <h3 className="text-primary font-bold text-base">Cadastro de Acesso</h3>
+              <p className="text-muted-foreground text-xs mt-1">
+                Cadastre seu email e crie sua senha de 6 dígitos para finalizar a ativação.
+              </p>
             </div>
-            <div>
-              <label className="block text-[10px] font-bold text-gold uppercase mb-1 text-left">
-                Senha de 6 Dígitos
-              </label>
-              <PasswordInput
-                value={pinRegInput}
-                onChange={(v) => {
-                  setPinRegInput(v);
-                  setEmailPinError("");
-                }}
-                placeholder="000000"
-                maxLength={6}
-                numericOnly
-                className={inputStyleCard}
-              />
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-primary/80 mb-1 text-left">E-mail</label>
+                <input
+                  type="email"
+                  value={emailPinRegInput}
+                  onChange={(e) => {
+                    setEmailPinRegInput(e.target.value);
+                    setEmailPinError("");
+                  }}
+                  placeholder="seu.email@exemplo.com"
+                  maxLength={100}
+                  className="w-full min-h-[46px] px-3.5 py-2.5 border border-gold/35 rounded-xl text-base sm:text-sm bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-gold placeholder:text-muted-foreground"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-primary/80 mb-1 text-left">
+                  Senha de 6 Dígitos
+                </label>
+                <PasswordInput
+                  value={pinRegInput}
+                  onChange={(v) => {
+                    setPinRegInput(v);
+                    setEmailPinError("");
+                  }}
+                  placeholder="000000"
+                  maxLength={6}
+                  numericOnly
+                  className={inputStyleCard}
+                />
+              </div>
             </div>
+            {emailPinError && <p className="text-destructive text-xs font-medium">{emailPinError}</p>}
+            <button
+              onClick={handleEmailPinRegister}
+              disabled={emailPinLoading}
+              className="w-full min-h-[46px] py-3 rounded-xl gold-gradient text-primary font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {emailPinLoading ? "Cadastrando..." : "Cadastrar"}
+            </button>
           </div>
-          {emailPinError && <p className="text-destructive text-xs">{emailPinError}</p>}
-          <button
-            onClick={handleEmailPinRegister}
-            disabled={emailPinLoading}
-            className="w-full py-3 rounded-lg gold-gradient text-primary font-bold uppercase hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
-            {emailPinLoading ? "Cadastrando..." : "Cadastrar"}
-          </button>
         </div>
       </div>
     );
@@ -1490,304 +1688,690 @@ export default function LoginScreen({ onLogin, sessionKicked, onSessionKickedAck
 
   if (screen === "email-register") {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center elite-gradient">
-        <div className="bg-card rounded-xl border-2 border-gold/50 p-6 w-full max-w-xs text-center space-y-4 relative">
-          <button
-            onClick={() => {
-              setScreen("login");
-              setEmailRegInput("");
-              setEmailConfirmPassInput("");
-              setEmailRegError("");
-            }}
-            className="absolute top-3 right-3 text-muted-foreground hover:text-foreground transition-colors"
-            title="Fechar"
-          >
-            <X className="w-5 h-5" />
-          </button>
-          <div className="text-center">
-            <SystemLogo
-              alt="Elite"
-              className="w-20 h-20 mx-auto mb-2 drop-shadow-lg rounded-2xl object-cover border border-gold/40"
-            />
-            <h3 className="text-primary font-bold uppercase text-sm">
-              {pendingAccessLevel === "pin_corretor" ? "Informe seu Email" : "Cadastro de Email"}
-            </h3>
-            <p className="text-muted-foreground text-xs mt-1">
-              {pendingAccessLevel === "pin_corretor"
-                ? "Informe o email cadastrado no Painel Comercial para validar seu acesso."
-                : "Para sua segurança, cadastre seu email e confirme com a senha utilizada no login."}
-            </p>
-          </div>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-[10px] font-bold text-gold uppercase mb-1 text-left">Email</label>
-              <input
-                type="email"
-                value={emailRegInput}
-                onChange={(e) => {
-                  setEmailRegInput(e.target.value);
-                  setEmailRegError("");
-                }}
-                placeholder="seu.email@exemplo.com"
-                maxLength={100}
-                className="w-full px-3 py-2.5 border border-gold/30 rounded-lg text-sm bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-gold placeholder:text-muted-foreground"
+      <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain elite-gradient geometric-pattern p-4 sm:p-6">
+        <div className="min-h-full flex items-center justify-center py-4">
+          <div className="bg-card rounded-2xl border-2 border-gold/50 p-5 sm:p-7 w-full max-w-sm sm:max-w-md text-center space-y-4 relative shadow-2xl">
+            <button
+              type="button"
+              onClick={() => {
+                setScreen("login");
+                setEmailRegInput("");
+                setEmailConfirmPassInput("");
+                setEmailRegError("");
+              }}
+              className="absolute top-3 right-3 min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Fechar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="text-center">
+              <SystemLogo
+                alt="Elite"
+                className="w-20 h-20 mx-auto mb-2 drop-shadow-lg rounded-2xl object-cover border border-gold/40"
               />
+              <h3 className="text-primary font-bold text-base">
+                {pendingAccessLevel === "pin_corretor" ? "Informe seu E-mail" : "Cadastro de E-mail"}
+              </h3>
+              <p className="text-muted-foreground text-xs mt-1">
+                {pendingAccessLevel === "pin_corretor"
+                  ? "Informe o e-mail cadastrado no Painel Comercial para validar seu acesso."
+                  : "Para sua segurança, cadastre seu e-mail e confirme com a senha utilizada no login."}
+              </p>
             </div>
-            {pendingAccessLevel !== "pin_corretor" && (
+            <div className="space-y-3">
               <div>
-                <label className="block text-[10px] font-bold text-gold uppercase mb-1 text-left">
-                  Confirme sua Senha
-                </label>
-                <PasswordInput
-                  value={emailConfirmPassInput}
-                  onChange={(v) => {
-                    setEmailConfirmPassInput(v);
+                <label className="block text-xs font-semibold text-primary/80 mb-1 text-left">E-mail</label>
+                <input
+                  type="email"
+                  value={emailRegInput}
+                  onChange={(e) => {
+                    setEmailRegInput(e.target.value);
                     setEmailRegError("");
                   }}
-                  placeholder="Senha utilizada no login"
-                  maxLength={50}
-                  className={inputStyleCard}
-                  centerText={false}
+                  placeholder="seu.email@exemplo.com"
+                  maxLength={100}
+                  className="w-full min-h-[46px] px-3.5 py-2.5 border border-gold/35 rounded-xl text-base sm:text-sm bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-gold placeholder:text-muted-foreground"
                 />
               </div>
-            )}
+              {pendingAccessLevel !== "pin_corretor" && (
+                <div>
+                  <label className="block text-xs font-semibold text-primary/80 mb-1 text-left">
+                    Confirme sua Senha
+                  </label>
+                  <PasswordInput
+                    value={emailConfirmPassInput}
+                    onChange={(v) => {
+                      setEmailConfirmPassInput(v);
+                      setEmailRegError("");
+                    }}
+                    placeholder="Senha utilizada no login"
+                    maxLength={50}
+                    className={inputStyleCard}
+                    centerText={false}
+                  />
+                </div>
+              )}
+            </div>
+            {emailRegError && <p className="text-destructive text-xs font-medium">{emailRegError}</p>}
+            <button
+              onClick={handleEmailRegister}
+              disabled={emailRegLoading}
+              className="w-full min-h-[46px] py-3 rounded-xl gold-gradient text-primary font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {emailRegLoading ? "Registrando..." : "Confirmar Cadastro"}
+            </button>
           </div>
-          {emailRegError && <p className="text-destructive text-xs">{emailRegError}</p>}
-          <button
-            onClick={handleEmailRegister}
-            disabled={emailRegLoading}
-            className="w-full py-3 rounded-lg gold-gradient text-primary font-bold uppercase hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
-            {emailRegLoading ? "Registrando..." : "Confirmar Cadastro"}
-          </button>
         </div>
       </div>
     );
   }
 
-  // ═══ DEFAULT LOGIN ═══
-
+  // ═══ DEFAULT LOGIN (RESPONSIVE: DESKTOP 2-COL · TABLET CENTERED + TOP BAR · MOBILE TOUCH-FIRST) ═══
   return (
-    <div
-      className="fixed inset-0 z-50 flex flex-col elite-gradient geometric-pattern overflow-hidden"
-      style={{ height: "100dvh" }}
-    >
-      {/* ADQUIRA SUA LICENÇA */}
-      {showLicenseBanner && !isFull && (
+    <div className="fixed inset-0 z-50 flex flex-col elite-gradient geometric-pattern overflow-hidden h-[100dvh]">
+      {/* Desktop & Tablet Top Bar (3-zone contract) */}
+      <header className="hidden md:flex items-center justify-between gap-8 w-full max-w-6xl mx-auto px-6 lg:px-10 py-4 border-b border-gold/15 shrink-0">
+        <span className="text-sm lg:text-base font-bold text-gold tracking-wide whitespace-nowrap shrink-0">
+          Simulador Corretor de Elite 4.0
+        </span>
+
+        <nav className="flex items-center gap-5 lg:gap-7 text-xs lg:text-sm font-medium text-gold/75" aria-label="Navegação principal">
+          <button
+            type="button"
+            onClick={() => setCorretorModalOpen(true)}
+            className="hover:text-gold hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 py-1"
+          >
+            Corretor Elite
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setAccessDbInitialTab("administrativo");
+              setAccessDbOpen(true);
+            }}
+            className="hover:text-gold hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 py-1"
+          >
+            Administrativo
+          </button>
+          <button
+            type="button"
+            onClick={() => setLgpdOpen(true)}
+            className="hover:text-gold hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 py-1"
+          >
+            LGPD
+          </button>
+          <button
+            type="button"
+            onClick={() => setFaleConoscoOpen(!faleConoscoOpen)}
+            className="hover:text-gold hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 py-1"
+          >
+            Fale Conosco
+          </button>
+        </nav>
+
         <a
-          href="https://simuladorcorretorelite.com.br"
+          href="https://simuladorcorretorelite.com.br/"
           target="_blank"
           rel="noopener noreferrer"
-          className="absolute top-3 right-3 px-4 py-2.5 rounded shadow-lg text-[10px] md:text-xs font-extrabold uppercase tracking-wider text-center leading-tight no-underline z-50 animate-pulse transition-transform hover:scale-105 active:scale-95"
-          style={{
-            background: "linear-gradient(135deg, hsl(42 60% 50%) 0%, hsl(42 70% 40%) 100%)",
-            color: "hsl(220 70% 10%)",
-            border: "2px solid hsl(42 80% 60% / 0.7)",
-            boxShadow: "0 0 15px hsl(42 60% 50% / 0.5), 0 4px 12px rgba(0,0,0,0.3)",
-          }}
+          className="px-4 py-2 rounded-lg gold-gradient text-primary text-xs font-bold hover:opacity-90 transition-opacity whitespace-nowrap shrink-0 no-underline"
         >
-          ⭐ Adquira Sua Licença
+          Adquirir Licença
         </a>
-      )}
+      </header>
 
-      {/* Main Content - centered */}
-      <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 w-full max-w-sm mx-auto overflow-y-auto pb-20 pt-4 scrollbar-hide">
-        <div className="animate-fade-in flex flex-col items-center gap-3 sm:gap-5 w-full">
-          <div className="text-center">
-            <SystemLogo
-              alt="Simulador Corretor de Elite 4.0"
-              className="w-20 h-20 sm:w-32 sm:h-32 mx-auto mb-2 sm:mb-4 drop-shadow-lg rounded-2xl object-cover border border-gold/40 shadow-gold/20"
-            />
-            <h1 className="text-base sm:text-xl font-bold tracking-wider uppercase leading-tight">
-              {isFull ? (
-                <span className="text-gold">Simulador Corretor de Elite 4.0</span>
-              ) : (
-                <span className="text-gold">
-                  Simulador <span className="text-gold-bright">Corretor de Elite 4.0</span>
-                </span>
+      {/* Scrollable Main Area — block scroll wrapper + min-h-full flex centering prevents top clipping on short screens */}
+      <main className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide">
+        <div className="min-h-full w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-10 pt-5 sm:pt-8 lg:py-10 pb-[calc(5.75rem+env(safe-area-inset-bottom))] md:pb-10 flex flex-col justify-center">
+          <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-7 lg:gap-12 items-center animate-fade-in">
+            {/* Brand & Architecture Overview Column */}
+            <section className="lg:col-span-6 flex flex-col items-center lg:items-start text-center lg:text-left space-y-3 sm:space-y-4 lg:space-y-6">
+              <div className="flex flex-col sm:flex-row lg:flex-col items-center lg:items-start gap-3 sm:gap-4">
+                <SystemLogo
+                  alt="Simulador Corretor de Elite 4.0"
+                  className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 shrink-0 drop-shadow-lg rounded-2xl object-cover border border-gold/40 shadow-gold/20"
+                />
+                <div className="space-y-1 sm:space-y-1.5 text-center sm:text-left">
+                  <h1 className="text-lg sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-gold tracking-tight leading-tight text-balance">
+                    Simulador <span className="text-gold-bright">Corretor de Elite 4.0</span>
+                  </h1>
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-x-2 gap-y-0.5 text-xs sm:text-sm text-gold/80 font-medium">
+                    <span>{isFull ? "Venda Segura" : "Venda Segura · Modo Demo"}</span>
+                    <span aria-hidden="true" className="text-gold/40">·</span>
+                    <span className={isFull ? "text-gold-bright" : "text-gold/75"}>{statusMsg}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mobile-only unobtrusive license CTA when demo banner is active */}
+              {showLicenseBanner && !isFull && (
+                <a
+                  href="https://simuladorcorretorelite.com.br"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="md:hidden w-full max-w-md py-2.5 px-4 rounded-xl gold-gradient text-primary text-xs font-bold text-center no-underline hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                  Adquirir Licença em simuladorcorretorelite.com.br
+                </a>
               )}
-            </h1>
-            <p className="text-gold/80 text-[10px] sm:text-xs tracking-[3px] sm:tracking-[4px] mt-1 sm:mt-2 uppercase font-semibold">
-              {isFull ? "VENDA SEGURA" : "VENDA SEGURA - DEMO"}
-            </p>
+
+              {/* Desktop institutional highlights (keeps mobile & tablet clean above the fold) */}
+              <div className="hidden lg:block w-full max-w-lg pt-2 space-y-4 border-t border-gold/15">
+                <p className="text-sm text-slate-300 leading-relaxed">
+                  Ambiente exclusivo para imobiliárias e corretores com contrato ativo. Acesse no computador, tablet ou
+                  celular com isolamento completo por conta.
+                </p>
+
+                <dl className="divide-y divide-gold/15 text-sm">
+                  <div className="py-3">
+                    <dt className="font-semibold text-gold">Isolamento por ID Exclusivo</dt>
+                    <dd className="text-slate-300/85 text-xs mt-0.5 leading-relaxed">
+                      Cada imobiliária (IMOB) e corretor autônomo ou vinculado (CORR) opera em espaço próprio sem
+                      cruzamento de dados.
+                    </dd>
+                  </div>
+                  <div className="py-3">
+                    <dt className="font-semibold text-gold">Senha Pessoal e Google no Mesmo Contrato</dt>
+                    <dd className="text-slate-300/85 text-xs mt-0.5 leading-relaxed">
+                      Cadastre sua senha pessoal ou utilize sua conta Google vinculada ao e-mail contratado.
+                    </dd>
+                  </div>
+                  <div className="py-3">
+                    <dt className="font-semibold text-gold">Acesso Verificado</dt>
+                    <dd className="text-slate-300/85 text-xs mt-0.5 leading-relaxed">
+                      Liberação vinculada à confirmação de assinatura na página oficial simuladorcorretorelite.com.br.
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            </section>
+
+            {/* Right Access Form Column */}
+            <section className="lg:col-span-6 w-full max-w-md mx-auto lg:ml-auto lg:mr-0">
+              <div className="w-full rounded-2xl bg-[#07162b]/90 backdrop-blur-md border border-gold/25 shadow-2xl p-4 sm:p-6 lg:p-7 space-y-4">
+                {/* Segmented Mode Switch: Entrar vs Criar Senha Pessoal */}
+                <div
+                  className="w-full grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-primary/70 border border-gold/20"
+                  role="tablist"
+                  aria-label="Modo de acesso"
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={authTab === "login"}
+                    onClick={() => {
+                      setAuthTab("login");
+                      setError("");
+                      setInfoNotice("");
+                    }}
+                    className={`min-h-[42px] px-3 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${
+                      authTab === "login"
+                        ? "gold-gradient text-primary shadow-sm"
+                        : "text-gold/75 hover:text-gold"
+                    }`}
+                  >
+                    Entrar
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={authTab === "create_password"}
+                    onClick={() => {
+                      setAuthTab("create_password");
+                      setError("");
+                      setInfoNotice("");
+                    }}
+                    className={`min-h-[42px] px-3 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${
+                      authTab === "create_password"
+                        ? "gold-gradient text-primary shadow-sm"
+                        : "text-gold/75 hover:text-gold"
+                    }`}
+                  >
+                    Criar Senha Pessoal
+                  </button>
+                </div>
+
+                {/* Access Denied Notice */}
+                {accessDeniedNotice && !accessDeniedNotice.authorized && (
+                  <div className="w-full bg-red-950/75 border border-red-400/60 rounded-xl p-3.5 text-center space-y-2.5 animate-fade-in">
+                    <p className="text-red-200 text-xs font-bold">
+                      {accessDeniedNotice.code === "pending_payment"
+                        ? "Pagamento Pendente de Confirmação"
+                        : accessDeniedNotice.code === "expired"
+                          ? "Licença Expirada"
+                          : accessDeniedNotice.code === "blocked"
+                            ? "Acesso Não Autorizado"
+                            : "Cadastro Prévio Obrigatório"}
+                    </p>
+                    <p className="text-red-100/90 text-xs leading-relaxed">{accessDeniedNotice.message}</p>
+                    <div className="flex flex-col gap-2 pt-1">
+                      <a
+                        href="https://simuladorcorretorelite.com.br"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full min-h-[44px] py-2 px-3 rounded-xl gold-gradient text-primary text-xs font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5 no-underline"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                        Confirmar Pagamento no Site
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => setAccessDeniedNotice(null)}
+                        className="min-h-[36px] text-xs text-gold/75 hover:text-gold underline"
+                      >
+                        Fechar aviso
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Session Kicked Notice */}
+                {sessionKicked && (
+                  <div className="w-full bg-destructive/20 border border-destructive/40 rounded-xl p-3.5 text-center animate-fade-in">
+                    <p className="text-red-200 text-xs font-bold">Sessão encerrada</p>
+                    <p className="text-red-100/85 text-xs mt-1">
+                      Outro dispositivo acessou sua conta. Faça login novamente para retomar o acesso.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={onSessionKickedAck}
+                      className="mt-2 min-h-[36px] px-3 text-xs text-gold/80 underline hover:text-gold"
+                    >
+                      Entendido
+                    </button>
+                  </div>
+                )}
+
+                {/* Info / Verification Notice */}
+                {infoNotice && (
+                  <div className="w-full bg-emerald-950/75 border border-emerald-400/50 rounded-xl p-3.5 text-center space-y-2.5 animate-fade-in">
+                    <p className="text-emerald-100 text-xs leading-relaxed">{infoNotice}</p>
+                    {pendingVerifyEmail && (
+                      <div className="flex flex-col gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={handleCheckEmailVerification}
+                          disabled={verifyingEmail}
+                          className="w-full min-h-[44px] py-2 px-3 rounded-xl gold-gradient text-primary text-xs font-bold hover:opacity-90 disabled:opacity-50"
+                        >
+                          {verifyingEmail ? "Verificando confirmação..." : "Já confirmei meu e-mail — Entrar"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleResendVerification}
+                          disabled={resendingEmail}
+                          className="min-h-[36px] text-xs text-gold/80 hover:text-gold underline"
+                        >
+                          {resendingEmail ? "Reenviando..." : `Reenviar link para ${pendingVerifyEmail}`}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Auth Forms */}
+                {authTab === "create_password" ? (
+                  <form onSubmit={handleCreatePersonalPassword} className="w-full space-y-3.5">
+                    <p className="text-slate-300 text-xs leading-relaxed">
+                      Primeiro acesso de <strong className="text-gold">Imobiliária</strong> ou{" "}
+                      <strong className="text-gold">Corretor</strong>? Crie sua senha pessoal utilizando o e-mail
+                      vinculado ao contrato.
+                    </p>
+
+                    <div className="space-y-1.5">
+                      <label htmlFor="reg-email" className="block text-xs font-medium text-gold/85">
+                        E-mail do contrato
+                      </label>
+                      <input
+                        id="reg-email"
+                        type="email"
+                        required
+                        autoComplete="email"
+                        value={regEmail}
+                        onChange={(e) => {
+                          setRegEmail(e.target.value);
+                          setError("");
+                        }}
+                        placeholder="seu.email@empresa.com.br"
+                        maxLength={254}
+                        className="w-full min-h-[46px] px-4 py-3 text-base sm:text-sm rounded-xl border border-gold/30 bg-primary/60 text-gold placeholder:text-gold/40 focus:outline-none focus:border-gold focus:ring-2 focus:ring-gold/40 transition-all"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label htmlFor="reg-password" className="block text-xs font-medium text-gold/85">
+                        Criar senha pessoal
+                      </label>
+                      <PasswordInput
+                        value={regPassword}
+                        onChange={(v) => {
+                          setRegPassword(v);
+                          setError("");
+                        }}
+                        id="reg-password"
+                        name="new-password"
+                        autoComplete="new-password"
+                        placeholder="Mín. 8 caracteres com letras e números"
+                        maxLength={128}
+                        className={inputStyle}
+                        centerText={false}
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label htmlFor="reg-confirm-password" className="block text-xs font-medium text-gold/85">
+                        Confirmar senha pessoal
+                      </label>
+                      <PasswordInput
+                        value={regConfirmPassword}
+                        onChange={(v) => {
+                          setRegConfirmPassword(v);
+                          setError("");
+                        }}
+                        id="reg-confirm-password"
+                        name="confirm-password"
+                        autoComplete="new-password"
+                        placeholder="Repita a senha pessoal"
+                        maxLength={128}
+                        className={inputStyle}
+                        centerText={false}
+                      />
+                    </div>
+
+                    {error && (
+                      <p role="alert" className="text-red-300 text-center text-xs font-medium animate-fade-in">
+                        {error}
+                      </p>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={loading || googleLoading}
+                      className="w-full min-h-[48px] py-3 rounded-xl gold-gradient text-primary font-bold text-sm hover:opacity-90 active:scale-[0.99] transition-all disabled:opacity-50"
+                    >
+                      {loading ? "Cadastrando senha..." : "Cadastrar Senha Pessoal"}
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleSubmit} className="w-full space-y-3.5">
+                    <div className="space-y-1.5">
+                      <label htmlFor="login-email" className="block text-xs font-medium text-gold/85">
+                        E-mail do contrato <span className="text-gold/50 font-normal">(opcional para Master)</span>
+                      </label>
+                      <input
+                        id="login-email"
+                        type="email"
+                        name="email"
+                        autoComplete="username"
+                        value={loginEmail}
+                        onChange={(e) => {
+                          setLoginEmail(e.target.value);
+                          setError("");
+                        }}
+                        placeholder="seu.email@empresa.com.br"
+                        maxLength={254}
+                        className="w-full min-h-[46px] px-4 py-3 text-base sm:text-sm rounded-xl border border-gold/30 bg-primary/60 text-gold placeholder:text-gold/40 focus:outline-none focus:border-gold focus:ring-2 focus:ring-gold/40 transition-all"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <label htmlFor="password" className="text-xs font-medium text-gold/85 flex items-center gap-1.5">
+                          <Lock className="w-3.5 h-3.5 text-gold/70" />
+                          Senha pessoal ou Master
+                        </label>
+                        <button
+                          type="button"
+                          onClick={handleResetPersonalPassword}
+                          className="text-xs text-gold/70 hover:text-gold underline underline-offset-2 transition-colors whitespace-nowrap"
+                        >
+                          Esqueci a senha
+                        </button>
+                      </div>
+                      <PasswordInput
+                        value={password}
+                        onChange={(v) => {
+                          setPassword(v);
+                          setError("");
+                        }}
+                        id="password"
+                        name="password"
+                        autoComplete="current-password"
+                        placeholder="Digite sua senha"
+                        maxLength={128}
+                        className={inputStyle}
+                        centerText={false}
+                      />
+                    </div>
+
+                    {error && (
+                      <p role="alert" className="text-red-300 text-center text-xs font-medium animate-fade-in">
+                        {error}
+                      </p>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={loading || googleLoading}
+                      className="w-full min-h-[48px] py-3 rounded-xl gold-gradient text-primary font-bold text-sm tracking-wide hover:opacity-90 active:scale-[0.99] transition-all disabled:opacity-50"
+                    >
+                      {loading ? "Verificando..." : "Entrar no Simulador"}
+                    </button>
+                  </form>
+                )}
+
+                {/* Divider + Google Auth */}
+                <div className="space-y-3 pt-1">
+                  <div className="flex items-center gap-3">
+                    <div className="h-px flex-1 bg-gold/20" />
+                    <span className="text-[11px] text-gold/65 font-medium whitespace-nowrap">
+                      ou continue com Google
+                    </span>
+                    <div className="h-px flex-1 bg-gold/20" />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleGoogleLogin}
+                    disabled={googleLoading || loading}
+                    className="w-full min-h-[48px] px-4 py-3 rounded-xl bg-white text-slate-900 text-sm font-semibold hover:bg-slate-100 active:scale-[0.99] transition-all shadow-sm disabled:opacity-60 flex items-center justify-center gap-2.5"
+                  >
+                    {googleLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-slate-700" />
+                    ) : (
+                      <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+                        <path fill="#4285F4" d="M23.745 12.27c0-.79-.07-1.54-.19-2.27h-11.3v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z" />
+                        <path fill="#34A853" d="M12.255 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96h-3.98v3.09C3.515 21.3 7.565 24 12.255 24z" />
+                        <path fill="#FBBC05" d="M5.525 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62h-3.98a11.86 11.86 0 000 10.76l3.98-3.09z" />
+                        <path fill="#EA4335" d="M12.255 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C18.205 1.19 15.495 0 12.255 0c-4.69 0-8.74 2.7-10.71 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z" />
+                      </svg>
+                    )}
+                    <span className="whitespace-nowrap">
+                      {googleLoading ? "Conectando ao Google..." : "Entrar com Google"}
+                    </span>
+                  </button>
+
+                  {/* Secondary Access Shortcuts (1-col on narrow phones, 2-col on sm+) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setPainelComercialLoginOpen(true)}
+                      className="w-full min-h-[44px] px-3 py-2.5 rounded-xl border border-gold/35 bg-primary/40 text-gold text-xs font-semibold hover:bg-gold/15 transition-colors whitespace-nowrap"
+                    >
+                      Painel Comercial
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setClienteSiteOpen(true)}
+                      className="w-full min-h-[44px] px-3 py-2.5 rounded-xl border border-gold/35 bg-gold/10 text-gold text-xs font-semibold hover:bg-gold/20 transition-colors whitespace-nowrap"
+                    >
+                      Cliente do Site
+                    </button>
+                  </div>
+
+                  {isFull && (
+                    <div className="pt-1 flex justify-center">
+                      <BiometriaLoginPanel onAuthenticated={onLogin} />
+                    </div>
+                  )}
+
+                  {getSenhaUsuario() && (
+                    <button
+                      type="button"
+                      onClick={() => setScreen("change-pin")}
+                      className="w-full min-h-[42px] py-2 rounded-xl border border-gold/25 text-gold/85 text-xs font-semibold hover:bg-gold/10 transition-colors"
+                    >
+                      Alterar Senha de 6 Dígitos
+                    </button>
+                  )}
+                </div>
+              </div>
+            </section>
           </div>
 
-          <p className={`text-xs font-semibold ${isFull ? "text-gold-bright" : "text-gold/70"}`}>{statusMsg}</p>
-
-          {sessionKicked && (
-            <div className="w-full bg-destructive/20 border border-destructive/40 rounded-lg p-3 text-center animate-fade-in">
-              <p className="text-destructive text-xs font-bold">⚠ Sessão encerrada</p>
-              <p className="text-destructive/80 text-[10px] mt-1">
-                Outro dispositivo acessou sua conta. Faça login novamente para retomar o acesso.
-              </p>
-              <button onClick={onSessionKickedAck} className="mt-2 text-[10px] text-gold/60 underline hover:text-gold">
-                Entendido
-              </button>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="w-full space-y-4">
-            {/* Hidden username input to prevent browser/password manager loops and crashes on mobile */}
-            <input
-              type="text"
-              name="username"
-              autoComplete="username"
-              className="absolute opacity-0 -z-50 pointer-events-none w-px h-px overflow-hidden"
-              aria-hidden="true"
-              tabIndex={-1}
-              value={getUserEmail() || "corretor@elite.com"}
-              readOnly
-            />
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <Lock className="w-4 h-4 text-gold/70" />
-              <p className="text-gold/70 text-sm">Insira a senha para acessar o simulador</p>
-            </div>
-            <PasswordInput
-              value={password}
-              onChange={(v) => {
-                setPassword(v);
-                setError("");
-              }}
-              id="password"
-              name="password"
-              autoComplete="current-password"
-              placeholder="Senha de acesso"
-              maxLength={50}
-              className={inputStyle}
-            />
-            {error && <p className="text-destructive text-center text-sm animate-fade-in">{error}</p>}
-            <div className="flex gap-3">
-              <button
-                type="submit"
-                disabled={loading || googleLoading}
-                className="flex-1 py-3.5 rounded-lg gold-gradient text-primary font-extrabold uppercase tracking-wider hover:opacity-90 transition-all disabled:opacity-50 text-sm"
-              >
-                {loading ? "Verificando..." : "ENTRAR"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setPainelComercialLoginOpen(true)}
-                className="flex-1 py-3.5 rounded-lg border-2 border-gold/40 bg-transparent text-gold text-xs font-extrabold uppercase tracking-wider hover:bg-gold hover:text-primary transition-all"
-              >
-                PAINEL COMERCIAL
-              </button>
-            </div>
-
-            <div className="flex items-center gap-3 py-0.5">
-              <div className="h-px flex-1 bg-gold/25" />
-              <span className="text-[10px] uppercase tracking-widest text-gold/60 font-semibold">
-                ou entre com Google
-              </span>
-              <div className="h-px flex-1 bg-gold/25" />
-            </div>
-
-            <button
-              type="button"
-              onClick={handleGoogleLogin}
-              disabled={googleLoading || loading}
-              className="w-full py-3 rounded-lg bg-white text-slate-900 text-xs font-extrabold uppercase tracking-wider hover:bg-slate-100 transition-all shadow-md disabled:opacity-60 flex items-center justify-center gap-2.5"
-            >
-              {googleLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin text-slate-700" />
-              ) : (
-                <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true">
-                  <path fill="#4285F4" d="M23.745 12.27c0-.79-.07-1.54-.19-2.27h-11.3v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z" />
-                  <path fill="#34A853" d="M12.255 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96h-3.98v3.09C3.515 21.3 7.565 24 12.255 24z" />
-                  <path fill="#FBBC05" d="M5.525 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62h-3.98a11.86 11.86 0 000 10.76l3.98-3.09z" />
-                  <path fill="#EA4335" d="M12.255 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C18.205 1.19 15.495 0 12.255 0c-4.69 0-8.74 2.7-10.71 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z" />
-                </svg>
-              )}
-              {googleLoading ? "Conectando ao Google..." : "Entrar com Google"}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setClienteSiteOpen(true)}
-              className="w-full py-3 rounded-lg border-2 border-gold/60 bg-gold/10 text-gold text-xs font-extrabold uppercase tracking-wider hover:bg-gold hover:text-primary transition-all"
-            >
-              🛒 Cliente do Site (Comprou em simuladorcorretorelite.com.br)
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setForgotOpen(true)}
-              className="w-full text-center text-gold/70 hover:text-gold text-xs underline underline-offset-4 transition-colors"
-            >
-              Esqueci minha senha
-            </button>
-          </form>
-
-          {isFull && (
-            <div className="pt-1">
-              <BiometriaLoginPanel onAuthenticated={onLogin} />
-            </div>
-          )}
-
-          {getSenhaUsuario() && (
-            <button
-              onClick={() => setScreen("change-pin")}
-              className="w-full py-2 rounded-lg border border-gold/30 text-gold text-xs uppercase font-bold hover:bg-gold/10 transition-colors"
-            >
-              Alterar Senha de 6 Dígitos
-            </button>
-          )}
-
-          {/* Credits */}
-          <p className="text-gold/40 text-[10px] text-center mt-4 leading-relaxed">
-            Desenvolvimento: www.simuladorcorretorelite.com.br | Apoio: RODRIGO DIAS - Gestão TI | INFORMETC Tecnologia
-            em Informações Mercantis SC Ltda - CNPJ 00.921.557/0001-65 | Hospedagem ASSECOM ASSESSORIA - CNPJ
-            03.662.114/0001-95. - Contato: contatoapps@simuladorcorretorelite.com.br - Telefone (11)92205-2470 -
-            Whatsapp (11)920024853
-          </p>
+          {/* Institutional Credits */}
+          <footer className="mt-6 lg:mt-10 pt-4 border-t border-gold/10 text-center lg:text-left">
+            <p className="text-gold/45 text-[11px] leading-relaxed">
+              Desenvolvimento: www.simuladorcorretorelite.com.br · Apoio: RODRIGO DIAS - Gestão TI · INFORMETC
+              Tecnologia em Informações Mercantis SC Ltda (CNPJ 00.921.557/0001-65) · Hospedagem ASSECOM ASSESSORIA
+              (CNPJ 03.662.114/0001-95) · Contato: contatoapps@simuladorcorretorelite.com.br · Tel (11) 92205-2470 ·
+              WhatsApp (11) 92002-4853
+            </p>
+          </footer>
         </div>
-      </div>
+      </main>
 
-      {/* Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-primary/80 backdrop-blur-md border-t-2 border-gold/20">
-        <div className="max-w-md mx-auto flex">
+      {/* Mobile-Only Fixed Bottom Navigation Bar (hidden on tablet/desktop where top bar is visible) */}
+      <nav
+        aria-label="Menu rápido"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#061224]/95 backdrop-blur-md border-t border-gold/20 pb-[env(safe-area-inset-bottom)]"
+      >
+        <div className="grid grid-cols-5 max-w-lg mx-auto">
           <button
-            onClick={() => setScreen("master-modal")}
-            className="flex-1 flex flex-col items-center gap-1 py-3 text-gold/50 hover:text-gold transition-colors"
+            type="button"
+            onClick={() => setCorretorModalOpen(true)}
+            className="min-h-[58px] flex flex-col items-center justify-center gap-1 px-1 text-gold/75 active:text-gold hover:text-gold transition-colors"
           >
-            <Home className="w-5 h-5" />
-            <span className="text-[9px] font-bold uppercase tracking-wider">Corretor Elite</span>
+            <Home className="w-5 h-5 shrink-0" />
+            <span className="text-[10px] font-medium whitespace-nowrap truncate max-w-full">Corretor</span>
           </button>
           <button
-            onClick={() => setDemoAdminOpen(true)}
-            className="flex-1 flex flex-col items-center gap-1 py-3 text-gold/50 hover:text-gold transition-colors"
+            type="button"
+            onClick={() => {
+              setAccessDbInitialTab("administrativo");
+              setAccessDbOpen(true);
+            }}
+            className="min-h-[58px] flex flex-col items-center justify-center gap-1 px-1 text-gold/75 active:text-gold hover:text-gold transition-colors"
           >
-            <Settings className="w-5 h-5" />
-            <span className="text-[9px] font-bold uppercase tracking-wider">Administrativo</span>
+            <Settings className="w-5 h-5 shrink-0" />
+            <span className="text-[10px] font-medium whitespace-nowrap truncate max-w-full">Admin</span>
           </button>
           <button
+            type="button"
             onClick={() => setLgpdOpen(true)}
-            className="flex-1 flex flex-col items-center gap-1 py-3 text-gold/50 hover:text-gold transition-colors"
+            className="min-h-[58px] flex flex-col items-center justify-center gap-1 px-1 text-gold/65 active:text-gold hover:text-gold transition-colors"
           >
-            <Shield className="w-5 h-5" />
-            <span className="text-[9px] font-bold uppercase tracking-wider">LGPD</span>
+            <Shield className="w-5 h-5 shrink-0" />
+            <span className="text-[10px] font-medium whitespace-nowrap truncate max-w-full">LGPD</span>
           </button>
           <button
+            type="button"
             onClick={() => setFaleConoscoOpen(!faleConoscoOpen)}
-            className="flex-1 flex flex-col items-center gap-1 py-3 text-gold/50 hover:text-gold transition-colors"
+            className="min-h-[58px] flex flex-col items-center justify-center gap-1 px-1 text-gold/65 active:text-gold hover:text-gold transition-colors"
           >
-            <MessageCircle className="w-5 h-5" />
-            <span className="text-[9px] font-bold uppercase tracking-wider">Fale Conosco</span>
+            <MessageCircle className="w-5 h-5 shrink-0" />
+            <span className="text-[10px] font-medium whitespace-nowrap truncate max-w-full">Suporte</span>
           </button>
           <a
             href="https://simuladorcorretorelite.com.br/"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 flex flex-col items-center justify-center gap-1 py-3 text-gold/50 hover:text-gold transition-colors text-center"
+            className="min-h-[58px] flex flex-col items-center justify-center gap-1 px-1 text-gold/65 active:text-gold hover:text-gold transition-colors no-underline"
           >
-            <ShoppingCart className="w-5 h-5 mx-auto" />
-            <span className="text-[9px] font-bold uppercase tracking-wider">Adquirir Licença</span>
+            <ShoppingCart className="w-5 h-5 shrink-0" />
+            <span className="text-[10px] font-medium whitespace-nowrap truncate max-w-full">Licença</span>
           </a>
         </div>
       </nav>
 
+      {/* Corretor Elite (Autorizados) Modal */}
+      {corretorModalOpen && (
+        <div
+          className="fixed inset-0 z-[1500] bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+          onClick={() => setCorretorModalOpen(false)}
+        >
+          <div
+            className="w-full sm:max-w-md max-h-[90dvh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border-t-2 sm:border-2 border-gold/45 bg-[#07182e] p-5 sm:p-6 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:pb-6 space-y-4 text-center shadow-2xl relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-10 h-1 rounded-full bg-gold/30 mx-auto mb-1 sm:hidden" aria-hidden="true" />
+            <button
+              type="button"
+              onClick={() => setCorretorModalOpen(false)}
+              className="absolute top-3 right-3 min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg text-gold/60 hover:text-gold"
+              aria-label="Fechar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <h3 className="text-base font-bold text-gold pt-1">Corretor Elite (Autorizados)</h3>
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Somente Corretores e Clientes previamente cadastrados com confirmação de pagamento na página principal{" "}
+              <strong className="text-gold">simuladorcorretorelite.com.br</strong> têm acesso liberado.
+            </p>
+            <div className="space-y-2.5 pt-1">
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={googleLoading}
+                className="w-full min-h-[46px] py-3 rounded-xl bg-white text-slate-900 text-sm font-semibold hover:bg-slate-100 transition-colors flex items-center justify-center gap-2"
+              >
+                {googleLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                Verificar e Entrar com Google
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCorretorModalOpen(false);
+                  setClienteSiteOpen(true);
+                }}
+                className="w-full min-h-[44px] py-2.5 rounded-xl border border-gold/50 text-gold text-xs font-bold hover:bg-gold/10 transition-colors"
+              >
+                Cliente do Site (Compra Confirmada)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCorretorModalOpen(false);
+                  setAccessDbInitialTab("corretor_elite");
+                  setAccessDbOpen(true);
+                }}
+                className="w-full min-h-[44px] py-2.5 rounded-xl border border-gold/30 text-gold/85 text-xs font-bold hover:bg-gold/10 transition-colors"
+              >
+                Gerenciar Banco Corretor Elite (ADM)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCorretorModalOpen(false);
+                  setScreen("master-modal");
+                }}
+                className="w-full min-h-[40px] py-2 text-xs text-gold/70 hover:text-gold underline"
+              >
+                Inserir Senha Master / Validação
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modals */}
       <LgpdPanel externalOpen={lgpdOpen} onExternalClose={() => setLgpdOpen(false)} hideButton />
       {faleConoscoOpen && <FaleConoscoModal onClose={() => setFaleConoscoOpen(false)} />}
+      <AccessDatabasePanel
+        isOpen={accessDbOpen}
+        onClose={() => setAccessDbOpen(false)}
+        initialTab={accessDbInitialTab}
+      />
       <DemoAdminPanel isOpen={demoAdminOpen} onClose={() => setDemoAdminOpen(false)} />
       <PainelComercial isOpen={painelComercialLoginOpen} onClose={() => setPainelComercialLoginOpen(false)} />
       <ForgotPasswordModal open={forgotOpen} onClose={() => setForgotOpen(false)} />

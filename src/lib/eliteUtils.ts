@@ -77,10 +77,20 @@ export function calcularDesconto(valorNormal: number, valorVenda: number): numbe
 
 export const MASTER_EMAIL = 'lourenco.consultorimob@gmail.com';
 export const MASTER_PASSWORD = '47231970';
+export const ADMIN_EMAILS = [
+  'lourenco.consultorimob@gmail.com',
+  'simuladorcorretorelite4.0@gmail.com',
+] as const;
 
 export function isMasterEmail(email?: string | null): boolean {
   if (!email) return false;
   return email.trim().toLowerCase() === MASTER_EMAIL;
+}
+
+export function isAdminEmail(email?: string | null): boolean {
+  if (!email) return false;
+  const clean = email.trim().toLowerCase();
+  return (ADMIN_EMAILS as readonly string[]).includes(clean);
 }
 
 // === SERVER-SIDE PASSWORD VALIDATION ===
