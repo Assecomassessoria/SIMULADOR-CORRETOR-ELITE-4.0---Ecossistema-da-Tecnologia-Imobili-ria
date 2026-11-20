@@ -19,19 +19,49 @@ export default defineConfig(({ mode }) => ({
           proxy.on("proxyReq", (proxyReq) => {
             proxyReq.setHeader("origin", "https://simuladorcorretorelite.com.br");
           });
+          proxy.on("error", (_err, _req, res) => {
+            if ("writeHead" in res && !res.headersSent) {
+              res.writeHead(503, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ error: "Serviço externo temporariamente indisponível.", offline: true }));
+            }
+          });
         }
       },
       "/rest/v1": {
         target: "https://hoagdvthplzbmqrvuesi.supabase.co",
         changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on("error", (_err, _req, res) => {
+            if ("writeHead" in res && !res.headersSent) {
+              res.writeHead(503, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ error: "Serviço externo temporariamente indisponível.", offline: true }));
+            }
+          });
+        }
       },
       "/auth/v1": {
         target: "https://hoagdvthplzbmqrvuesi.supabase.co",
         changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on("error", (_err, _req, res) => {
+            if ("writeHead" in res && !res.headersSent) {
+              res.writeHead(503, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ error: "Serviço externo temporariamente indisponível.", offline: true }));
+            }
+          });
+        }
       },
       "/storage/v1": {
         target: "https://hoagdvthplzbmqrvuesi.supabase.co",
         changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on("error", (_err, _req, res) => {
+            if ("writeHead" in res && !res.headersSent) {
+              res.writeHead(503, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ error: "Serviço externo temporariamente indisponível.", offline: true }));
+            }
+          });
+        }
       }
     }
   },
