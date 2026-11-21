@@ -222,10 +222,16 @@
     margin: 12mm;
   }
 
+  html,
   body.proposta-print-mode {
     background: #ffffff !important;
     overflow: visible !important;
     height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   body.proposta-print-mode > *:not([data-proposta-portal="true"]) {
@@ -235,10 +241,22 @@
   body.proposta-print-mode [data-proposta-portal="true"] {
     position: static !important;
     inset: auto !important;
+    z-index: auto !important;
     background: #ffffff !important;
     padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    height: auto !important;
     overflow: visible !important;
     backdrop-filter: none !important;
+  }
+
+  body.proposta-print-mode .proposta-portal-inner {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
   }
 
   body.proposta-print-mode .proposta-no-print {
@@ -246,6 +264,10 @@
   }
 
   body.proposta-print-mode #proposta-cliente-a4 {
+    position: relative !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 266mm !important;
     box-shadow: none !important;
     border: none !important;
     border-radius: 0 !important;
@@ -253,7 +275,63 @@
     margin: 0 !important;
     max-width: 100% !important;
     width: 100% !important;
+    background: #ffffff !important;
+    overflow: hidden !important;
+  }
+
+  body.proposta-print-mode .proposta-watermark {
+    position: fixed !important;
+    inset: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 0 !important;
+    pointer-events: none !important;
+  }
+
+  body.proposta-print-mode .proposta-sheet-content {
+    flex: 1 1 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  body.proposta-print-mode .proposta-header {
+    flex-direction: row !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+  }
+
+  body.proposta-print-mode .proposta-header-meta {
+    text-align: right !important;
+  }
+
+  body.proposta-print-mode .proposta-cards-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+  }
+
+  body.proposta-print-mode .proposta-card {
+    padding: 13px 15px !important;
+    background: rgba(255, 255, 255, 0.8) !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  body.proposta-print-mode .proposta-signatures {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 36px !important;
+  }
+
+  body.proposta-print-mode .proposta-footer {
+    margin-top: auto !important;
+    padding-top: 24px !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 }
+
 
 

@@ -1,9 +1,13 @@
 import { describe, it, expect } from "vitest";
 import {
+  PROPOSTA_DISCLAIMER_LINE_1,
+  PROPOSTA_DISCLAIMER_LINE_2,
   buildPropostaClienteData,
+  buildPropostaPrintHtml,
   buildPropostaWhatsAppMessage,
   buildPropostaWhatsAppUrl,
   computePropostaDates,
+  escapeHtml,
   generatePropostaNumero,
   normalizeBrazilianWhatsApp,
 } from "./PropostaClienteModal";
@@ -66,7 +70,7 @@ describe("PropostaClienteModal helpers", () => {
     expect(normalizeBrazilianWhatsApp("12345")).toBe("");
   });
 
-  it("builds complete proposal data and formatted WhatsApp message", () => {
+  it("builds complete proposal data and formatted WhatsApp message with official footer", () => {
     const data = buildPropostaClienteData({
       fields: sampleFields,
       results: sampleResults,
@@ -92,8 +96,35 @@ describe("PropostaClienteModal helpers", () => {
     expect(msg).toContain("PARC. PÓS-ENTREGA");
     expect(msg).toContain("Documentação grátis na campanha.");
     expect(msg).toContain("CRECI: 237.626-F");
+    expect(msg).toContain(PROPOSTA_DISCLAIMER_LINE_1);
+    expect(msg).toContain(PROPOSTA_DISCLAIMER_LINE_2);
 
     const url = buildPropostaWhatsAppUrl("(11) 98765-4321", msg);
     expect(url).toMatch(/^https:\/\/wa\.me\/5511987654321\?text=/);
   });
+
+  it("generates sanitized A4 print HTML with watermark and exact disclaimer", () => {
+    const data = buildPropostaClienteData({
+      fields: { ...sampleFields, infoCli: '<script>alert("x")</script>Maria' },
+      results: sampleResults,
+      numeroProposta: "PROP-20261120-1142",
+      validadeDias: 7,
+      construtora: "Construtora Elite",
+      observacoes: "",
+      baseDate: new Date(2026, 10, 20),
+    });
+
+    const html = buildPropostaPrintHtml(data, "/logo-elite.jpg");
+    expect(html).toContain("size: A4 portrait");
+    expect(html).toContain("/logo-elite.jpg");
+    expect(html).toContain(PROPOSTA_DISCLAIMER_LINE_1);
+    expect(html).toContain(PROPOSTA_DISCLAIMER_LINE_2);
+    expect(html).not.toContain("<script>alert");
+    expect(html).toContain(escapeHtml('<script>alert("x")</script>Maria'));
+
+    const autoPrintHtml = buildPropostaPrintHtml(data, "/logo-elite.jpg", null, { autoPrint: true });
+    expect(autoPrintHtml).toContain("Selecionar Impressora / Imprimir A4");
+    expect(autoPrintHtml).toContain("window.print()");
+  });
 });
+
