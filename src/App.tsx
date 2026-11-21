@@ -20,8 +20,39 @@ import RelatorioAuditoriaPage from "./pages/RelatorioAuditoriaPage";
 import { getActiveTenant, applyTenantTheme } from "@/lib/tenant";
 import FirebaseErrorBoundary from "@/components/FirebaseErrorBoundary";
 import { FirebaseProvider } from "@/contexts/FirebaseContext";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 const queryClient = new QueryClient();
+
+// Rotas protegidas pelo HOC ProtectedRoute com verificação de autenticação, tenant_id e papel
+const ProtectedCrmPage = ProtectedRoute(CrmPage, {
+  allowedPapeis: ["master_adm", "admin_imobiliaria", "corretor"],
+  requireTenantId: true,
+});
+const ProtectedApresentacaoPage = ProtectedRoute(ApresentacaoPage, {
+  allowedPapeis: ["master_adm", "admin_imobiliaria", "corretor", "cliente"],
+  requireTenantId: true,
+});
+const ProtectedLuizaElitePage = ProtectedRoute(LuizaElitePage, {
+  allowedPapeis: ["master_adm", "admin_imobiliaria", "corretor"],
+  requireTenantId: true,
+});
+const ProtectedImagensPage = ProtectedRoute(ImagensPage, {
+  allowedPapeis: ["master_adm", "admin_imobiliaria", "corretor"],
+  requireTenantId: true,
+});
+const ProtectedMarketingIndex = ProtectedRoute(MarketingIndex, {
+  allowedPapeis: ["master_adm", "admin_imobiliaria", "corretor"],
+  requireTenantId: true,
+});
+const ProtectedMarketingSettings = ProtectedRoute(MarketingSettings, {
+  allowedPapeis: ["master_adm", "admin_imobiliaria"],
+  requireTenantId: true,
+});
+const ProtectedRelatorioAuditoriaPage = ProtectedRoute(RelatorioAuditoriaPage, {
+  allowedPapeis: ["master_adm", "admin_imobiliaria"],
+  requireTenantId: true,
+});
 
 const App = () => {
   useEffect(() => {
@@ -40,17 +71,18 @@ const App = () => {
             <BrowserRouter>
               <Routes>
                 <Route path="/" element={<Index />} />
+                <Route path="/login" element={<Index />} />
                 <Route path="/site" element={<LandingPage />} />
                 <Route path="/manual" element={<ManualPage />} />
-                <Route path="/crm" element={<CrmPage />} />
-                <Route path="/apresentacao" element={<ApresentacaoPage />} />
-                <Route path="/luiza" element={<LuizaElitePage />} />
-                <Route path="/imagens" element={<ImagensPage />} />
-                <Route path="/marketing" element={<MarketingIndex />} />
+                <Route path="/crm" element={<ProtectedCrmPage />} />
+                <Route path="/apresentacao" element={<ProtectedApresentacaoPage />} />
+                <Route path="/luiza" element={<ProtectedLuizaElitePage />} />
+                <Route path="/imagens" element={<ProtectedImagensPage />} />
+                <Route path="/marketing" element={<ProtectedMarketingIndex />} />
                 <Route path="/marketing/auth" element={<MarketingAuth />} />
-                <Route path="/marketing/settings" element={<MarketingSettings />} />
+                <Route path="/marketing/settings" element={<ProtectedMarketingSettings />} />
                 <Route path="/marketing/reset-password" element={<MarketingResetPassword />} />
-                <Route path="/relatorio-auditoria" element={<RelatorioAuditoriaPage />} />
+                <Route path="/relatorio-auditoria" element={<ProtectedRelatorioAuditoriaPage />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

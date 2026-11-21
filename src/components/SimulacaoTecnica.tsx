@@ -16,6 +16,7 @@ import {
   ChevronDown,
   ChevronUp,
   BarChart3,
+  FileSignature,
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
@@ -27,6 +28,7 @@ import SimulacaoCustom from "@/components/SimulacaoCustom";
 import WhatsappQrCard from "@/components/marketing/WhatsappQrCard";
 import { useUnidadeLookup } from "@/hooks/useUnidadeLookup";
 import DocumentModal from "@/components/DocumentModal";
+import PropostaClienteModal from "@/components/PropostaClienteModal";
 
 const safeStorage = {
   getItem(key: string): string | null {
@@ -143,6 +145,7 @@ export default function SimulacaoTecnica({ adminData, onDataUpdate, isVisitor = 
   const [printMenuOpen, setPrintMenuOpen] = useState(false);
   const [vencimentosOpen, setVencimentosOpen] = useState(false);
   const [activeDocModal, setActiveDocModal] = useState<string | null>(null);
+  const [propostaClienteOpen, setPropostaClienteOpen] = useState(false);
   const [waConnectOpen, setWaConnectOpen] = useState(false);
   const [docsPanelOpen, setDocsPanelOpen] = useState(() => {
     if (typeof window === "undefined") return true;
@@ -2191,6 +2194,16 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
 
                 {docsPanelOpen && (
                   <div className="p-4 space-y-4 bg-background/40">
+                    {/* Botão principal dourado: Proposta para o Cliente */}
+                    <button
+                      type="button"
+                      onClick={() => setPropostaClienteOpen(true)}
+                      className="w-full min-h-[48px] flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-sm font-extrabold uppercase tracking-wider gold-gradient text-primary shadow-md hover:opacity-95 active:scale-[0.99] transition-all"
+                    >
+                      <FileSignature className="w-5 h-5 shrink-0" />
+                      Proposta para o Cliente
+                    </button>
+
                     {/* Relatórios */}
                     <div>
                       <p className="text-[10px] font-black text-primary uppercase tracking-[2px] mb-2.5 px-1">
@@ -2435,6 +2448,15 @@ input[type=text]:focus,input[type=date]:focus{outline:none;border-bottom:1px sol
           onClose={() => setActiveDocModal(null)}
         />
       )}
+
+      <PropostaClienteModal
+        isOpen={propostaClienteOpen}
+        onClose={() => setPropostaClienteOpen(false)}
+        fields={fields}
+        results={results}
+        adminData={adminData}
+        logoEmp={logoEmp}
+      />
     </div>
   );
 }

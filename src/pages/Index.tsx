@@ -14,7 +14,9 @@ import {
   ShieldCheck,
   KeyRound,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import type { ProtectedRouteRedirectState } from "@/components/ProtectedRoute";
 import CalculadoraPopup from "@/components/CalculadoraPopup";
 import LoginScreen from "@/components/LoginScreen";
 import SimulacaoTecnica from "@/components/SimulacaoTecnica";
@@ -65,8 +67,17 @@ interface ChartDataState {
 
 const Index = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { signOutGoogle, isGoogleMaster, accessAuthorization } = useFirebaseAuth();
   const [isLoggedIn, setIsLoggedIn] = useState(checkLoginValid);
+
+  useEffect(() => {
+    const redirectState = location.state as ProtectedRouteRedirectState | null;
+    if (redirectState?.authDeniedMessage) {
+      toast.error(redirectState.authDeniedMessage);
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.pathname, location.state, navigate]);
   const [activeTab, setActiveTab] = useState<Tab>("simulacao");
   const [adminOpen, setAdminOpen] = useState(false);
   const [accessDbOpen, setAccessDbOpen] = useState(false);

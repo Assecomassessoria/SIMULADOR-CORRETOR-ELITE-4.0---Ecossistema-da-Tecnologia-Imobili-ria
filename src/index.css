@@ -215,3 +215,45 @@
   }
 }
 
+/* A4 single-sheet print isolation for Proposta para o Cliente */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  body.proposta-print-mode {
+    background: #ffffff !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  body.proposta-print-mode > *:not([data-proposta-portal="true"]) {
+    display: none !important;
+  }
+
+  body.proposta-print-mode [data-proposta-portal="true"] {
+    position: static !important;
+    inset: auto !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    backdrop-filter: none !important;
+  }
+
+  body.proposta-print-mode .proposta-no-print {
+    display: none !important;
+  }
+
+  body.proposta-print-mode #proposta-cliente-a4 {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+}
+
+
