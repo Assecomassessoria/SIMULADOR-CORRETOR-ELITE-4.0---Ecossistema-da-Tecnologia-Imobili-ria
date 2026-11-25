@@ -331,6 +331,46 @@
     break-inside: avoid !important;
     page-break-inside: avoid !important;
   }
+
+  /* A4 single-sheet print isolation for Fluxo / Proposta Cliente (Condições Propostas) */
+  html,
+  body.fluxo-print-mode {
+    background: #ffffff !important;
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body.fluxo-print-mode > *:not([data-fluxo-print-portal="true"]) {
+    display: none !important;
+  }
+
+  body.fluxo-print-mode [data-fluxo-print-portal="true"] {
+    display: flex !important;
+    flex-direction: column !important;
+    position: relative !important;
+    width: 100% !important;
+    min-height: 266mm !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+  }
+
+  body.fluxo-print-mode .fluxo-print-watermark {
+    position: fixed !important;
+    inset: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 0 !important;
+    pointer-events: none !important;
+  }
 }
 
 

@@ -5,6 +5,7 @@ import {
   type Venda, getVendas, saveVendas, checkExpiration, exportCSV,
   formatCurrency, formatCurrencyInput, parseCurrency, calcularSenhaMaster, calcularDesconto, formatCPF,
 } from '@/lib/eliteUtils';
+import FluxoPropostaCliente from '@/components/FluxoPropostaCliente';
 
 /* ─── Options ─── */
 const ESCOLARIDADE = ['Fundamental', 'Médio', 'Superior', 'Pós-graduação'];
@@ -479,6 +480,9 @@ ${section('Dados do Sistema',
           </div>
         </div>
       )}
+
+      {/* ═══════════════════ FLUXO / PROPOSTA CLIENTE (COM PERCENTUAIS) ═══════════════════ */}
+      <FluxoPropostaCliente />
 
       {/* ═══════════════════ LISTA DE VENDAS ═══════════════════ */}
       {filtered.length === 0 ? (
