@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { Printer, Share2, ArrowLeft, ChevronLeft, ChevronRight, Download, Images } from "lucide-react";
+import { Printer, Share2, ArrowLeft, ChevronLeft, ChevronRight, Download, Images, FileDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import PptxGenJS from "pptxgenjs";
+import { toast } from "sonner";
+import { exportSistemaMarketingPdf } from "@/lib/marketingPdfGenerator";
 
 const slides = [
   // SLIDE 1 — CAPA
@@ -1310,7 +1312,21 @@ const ApresentacaoPage = () => {
   const [current, setCurrent] = useState(0);
   const navigate = useNavigate();
 
+  const [pdfMarketingLoading, setPdfMarketingLoading] = useState(false);
+
   const handlePrint = () => window.print();
+
+  const handleDownloadMarketingPdf = async () => {
+    setPdfMarketingLoading(true);
+    try {
+      await exportSistemaMarketingPdf();
+      toast.success("PDF de Marketing do sistema baixado com sucesso!");
+    } catch {
+      toast.error("Não foi possível gerar o PDF de Marketing.");
+    } finally {
+      setPdfMarketingLoading(false);
+    }
+  };
 
   const handleWhatsApp = () => {
     const encoded = encodeURIComponent(whatsappSummary);
@@ -2998,11 +3014,21 @@ const ApresentacaoPage = () => {
             <Download className="w-3.5 h-3.5" /> PowerPoint
           </button>
           <button
-            onClick={handlePrint}
-            className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-bold"
+            type="button"
+            onClick={() => void handleDownloadMarketingPdf()}
+            disabled={pdfMarketingLoading}
+            className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-bold disabled:opacity-60"
             style={{ background: "hsl(42 60% 55%)", color: "hsl(220 70% 10%)" }}
           >
-            <Printer className="w-3.5 h-3.5" /> PDF
+            <FileDown className="w-3.5 h-3.5" /> {pdfMarketingLoading ? "Gerando..." : "PDF Marketing"}
+          </button>
+          <button
+            type="button"
+            onClick={handlePrint}
+            className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-bold"
+            style={{ background: "hsl(220 70% 25%)", color: "hsl(42 60% 55%)" }}
+          >
+            <Printer className="w-3.5 h-3.5" /> Imprimir Slides
           </button>
         </div>
       </div>

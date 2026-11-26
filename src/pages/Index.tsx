@@ -13,8 +13,10 @@ import {
   Lightbulb,
   ShieldCheck,
   KeyRound,
+  FileDown,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { exportSistemaMarketingPdf } from "@/lib/marketingPdfGenerator";
 import { toast } from "sonner";
 import type { ProtectedRouteRedirectState } from "@/components/ProtectedRoute";
 import CalculadoraPopup from "@/components/CalculadoraPopup";
@@ -312,6 +314,20 @@ const Index = () => {
             title="Marketing"
           >
             <Megaphone className="w-5 h-5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              toast.info("Gerando PDF de Marketing do sistema...");
+              void exportSistemaMarketingPdf()
+                .then(() => toast.success("PDF de Marketing baixado com sucesso!"))
+                .catch(() => toast.error("Não foi possível gerar o PDF de Marketing."));
+            }}
+            className="p-2 text-gold/75 hover:text-gold transition-colors"
+            title="Baixar PDF de Marketing do Sistema (Todas as Funções)"
+            aria-label="Baixar PDF de Marketing do Sistema"
+          >
+            <FileDown className="w-5 h-5" />
           </button>
           <button
             id="tour-btn-luiza"
