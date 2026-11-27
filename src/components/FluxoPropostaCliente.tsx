@@ -33,6 +33,7 @@ export interface FluxoSerieRow {
   qtd: string;
   valor: string;
   vencimento: string;
+  autoDivideSaldo?: boolean;
 }
 
 export interface FluxoSerieComputed extends FluxoSerieRow {
@@ -76,7 +77,7 @@ export function createModeloSeries(): FluxoSerieRow[] {
 export function createBlankSeries(): FluxoSerieRow[] {
   return [
     { id: "ato", serie: "Ato", qtd: "1", valor: "", vencimento: "" },
-    { id: "mensal", serie: "Mensal", qtd: "1", valor: "", vencimento: "" },
+    { id: "mensal", serie: "Mensal", qtd: "1", valor: "", vencimento: "", autoDivideSaldo: true },
     { id: "semestral", serie: "Semestral", qtd: "1", valor: "", vencimento: "" },
     { id: "anual", serie: "Anual", qtd: "1", valor: "", vencimento: "" },
     { id: "financiamento", serie: "Financiamento", qtd: "1", valor: "", vencimento: "" },
@@ -123,6 +124,210 @@ export function maskDateBrInput(rawValue: string): string {
 export function formatPercentBr(percent: number): string {
   const safe = Number.isFinite(percent) ? percent : 0;
   return `${safe.toFixed(2).replace(".", ",")}%`;
+}
+
+/**
+ * Formats a numeric value into the same R$ input string format used by maskBrlCurrencyInput.
+ */
+export function formatBrlInputFromNumber(value: number): string {
+  const safe = round2(Math.max(0, Number.isFinite(value) ? value : 0));
+  if (safe <= 0) return "";
+  const formatted = safe
+    .toFixed(2)
+    .replace(".", ",")
+    .replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.");
+  return `R$ ${formatted}`;
+}
+
+export function isMensalSerie(serieName: string): boolean {
+  const normalized = serieName
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  return normalized === "mensal" || normalized === "mensais" || /^mensa(l|is)\b/.test(normalized);
+}
+
+/**
+ * Computes the pending contract balance available for a specific row (contract value minus all OTHER rows).
+ */
+export function getSaldoDisponivelParaLinha(
+  valorContratoRaw: string,
+  series: FluxoSerieRow[],
+  rowId: string,
+): number {
+  const valorContrato = round2(Math.max(0, parseCurrency(valorContratoRaw)));
+  if (valorContrato <= 0) return 0;
+
+  const totalOutrasSeries = round2(
+    series.reduce((acc, row) => {
+      if (row.id === rowId) return acc;
+      const qtdNum = Math.max(0, parseInt(row.qtd, 10) || 0);
+      const valorUnitario = round2(Math.max(0, parseCurrency(row.valor)));
+      return acc + round2(qtdNum * valorUnitario);
+    }, 0),
+  );
+
+  return round2(Math.max(0, valorContrato - totalOutrasSeries));
+}
+
+export function createMensalSeriesWithSaldo(
+  valorContratoRaw: string,
+  series: FluxoSerieRow[],
+  newId: string,
+): FluxoSerieRow {
+  const saldoDisponivel = getSaldoDisponivelParaLinha(valorContratoRaw, series, newId);
+  return {
+    id: newId,
+    serie: "Mensal",
+    qtd: "1",
+    valor: saldoDisponivel > 0 ? formatBrlInputFromNumber(saldoDisponivel) : "",
+    vencimento: "",
+    autoDivideSaldo: true,
+  };
+}
+
+export function applySerieNameChange(
+  valorContratoRaw: string,
+  series: FluxoSerieRow[],
+  rowId: string,
+  nextSerie: string,
+): FluxoSerieRow[] {
+  const saldoDisponivel = getSaldoDisponivelParaLinha(valorContratoRaw, series, rowId);
+  const becomesMensal = isMensalSerie(nextSerie);
+
+  return series.map((row) => {
+    if (row.id !== rowId) return row;
+
+    const currentValor = round2(Math.max(0, parseCurrency(row.valor)));
+    if (becomesMensal && currentValor === 0 && saldoDisponivel > 0) {
+      const qtdNum = Math.max(1, parseInt(row.qtd, 10) || 1);
+      const valorDividido = round2(saldoDisponivel / qtdNum);
+      return {
+        ...row,
+        serie: nextSerie,
+        qtd: row.qtd || "1",
+        valor: formatBrlInputFromNumber(valorDividido),
+        autoDivideSaldo: true,
+      };
+    }
+
+    return {
+      ...row,
+      serie: nextSerie,
+      autoDivideSaldo: becomesMensal ? row.autoDivideSaldo : false,
+    };
+  });
+}
+
+export function applyRowFocusMensalSaldo(
+  valorContratoRaw: string,
+  series: FluxoSerieRow[],
+  rowId: string,
+): FluxoSerieRow[] {
+  const target = series.find((r) => r.id === rowId);
+  if (!target || !isMensalSerie(target.serie)) return series;
+
+  const currentValor = round2(Math.max(0, parseCurrency(target.valor)));
+  if (currentValor > 0) return series;
+
+  const saldoDisponivel = getSaldoDisponivelParaLinha(valorContratoRaw, series, rowId);
+  if (saldoDisponivel <= 0) return series;
+
+  const qtdNum = Math.max(1, parseInt(target.qtd, 10) || 1);
+  const valorDividido = round2(saldoDisponivel / qtdNum);
+
+  return series.map((row) =>
+    row.id === rowId
+      ? {
+          ...row,
+          qtd: row.qtd || "1",
+          valor: formatBrlInputFromNumber(valorDividido),
+          autoDivideSaldo: true,
+        }
+      : row,
+  );
+}
+
+export function applyRowQtdChange(
+  valorContratoRaw: string,
+  series: FluxoSerieRow[],
+  rowId: string,
+  nextQtdRaw: string,
+): FluxoSerieRow[] {
+  const cleaned = nextQtdRaw.replace(/\D/g, "").slice(0, 3);
+  const saldoDisponivel = getSaldoDisponivelParaLinha(valorContratoRaw, series, rowId);
+
+  return series.map((row) => {
+    if (row.id !== rowId) return row;
+
+    if (!cleaned) {
+      return { ...row, qtd: "" };
+    }
+
+    const nextQtdNum = parseInt(cleaned, 10) || 0;
+    const prevQtdNum = Math.max(0, parseInt(row.qtd, 10) || 0);
+    const prevValorNum = round2(Math.max(0, parseCurrency(row.valor)));
+    const prevSubtotal = round2(prevQtdNum * prevValorNum);
+    const matchesPendingSaldo =
+      saldoDisponivel > 0 && prevSubtotal > 0 && Math.abs(prevSubtotal - saldoDisponivel) <= 0.05;
+
+    const shouldAutoDivide =
+      isMensalSerie(row.serie) &&
+      nextQtdNum >= 1 &&
+      saldoDisponivel > 0 &&
+      (row.autoDivideSaldo === true || prevValorNum === 0 || matchesPendingSaldo);
+
+    if (shouldAutoDivide) {
+      const valorUnitario = round2(saldoDisponivel / nextQtdNum);
+      return {
+        ...row,
+        qtd: cleaned,
+        valor: formatBrlInputFromNumber(valorUnitario),
+        autoDivideSaldo: true,
+      };
+    }
+
+    return { ...row, qtd: cleaned };
+  });
+}
+
+export function applyRowManualValorChange(
+  series: FluxoSerieRow[],
+  rowId: string,
+  rawInput: string,
+): FluxoSerieRow[] {
+  const masked = maskBrlCurrencyInput(rawInput);
+  return series.map((row) =>
+    row.id === rowId
+      ? {
+          ...row,
+          valor: masked,
+          autoDivideSaldo: false,
+        }
+      : row,
+  );
+}
+
+export function applyUsarSaldoNaLinha(
+  valorContratoRaw: string,
+  series: FluxoSerieRow[],
+  rowId: string,
+): FluxoSerieRow[] {
+  const saldoDisponivel = getSaldoDisponivelParaLinha(valorContratoRaw, series, rowId);
+  if (saldoDisponivel <= 0) return series;
+
+  return series.map((row) => {
+    if (row.id !== rowId) return row;
+    const qtdNum = Math.max(1, parseInt(row.qtd, 10) || 1);
+    const valorUnitario = round2(saldoDisponivel / qtdNum);
+    return {
+      ...row,
+      qtd: row.qtd || "1",
+      valor: formatBrlInputFromNumber(valorUnitario),
+      autoDivideSaldo: isMensalSerie(row.serie),
+    };
+  });
 }
 
 export function computeFluxoProposta(
@@ -725,6 +930,7 @@ function loadInitialState(): PersistedFluxoState {
         qtd: typeof s.qtd === "string" ? s.qtd : "1",
         valor: typeof s.valor === "string" ? s.valor : "",
         vencimento: typeof s.vencimento === "string" ? s.vencimento : "",
+        autoDivideSaldo: typeof s.autoDivideSaldo === "boolean" ? s.autoDivideSaldo : undefined,
       })),
     };
   } catch {
@@ -779,6 +985,41 @@ export default function FluxoPropostaCliente() {
     }));
   };
 
+  const handleSerieChange = (id: string, nextSerie: string) => {
+    setState((prev) => ({
+      ...prev,
+      series: applySerieNameChange(prev.valorContrato, prev.series, id, nextSerie),
+    }));
+  };
+
+  const handleRowFocusMensal = (id: string) => {
+    setState((prev) => {
+      const nextSeries = applyRowFocusMensalSaldo(prev.valorContrato, prev.series, id);
+      return nextSeries === prev.series ? prev : { ...prev, series: nextSeries };
+    });
+  };
+
+  const handleQtdChange = (id: string, nextQtdRaw: string) => {
+    setState((prev) => ({
+      ...prev,
+      series: applyRowQtdChange(prev.valorContrato, prev.series, id, nextQtdRaw),
+    }));
+  };
+
+  const handleValorChange = (id: string, rawValor: string) => {
+    setState((prev) => ({
+      ...prev,
+      series: applyRowManualValorChange(prev.series, id, rawValor),
+    }));
+  };
+
+  const handleUsarSaldo = (id: string) => {
+    setState((prev) => ({
+      ...prev,
+      series: applyUsarSaldoNaLinha(prev.valorContrato, prev.series, id),
+    }));
+  };
+
   const handleAddRow = () => {
     const newId = `serie-${Date.now()}`;
     setState((prev) => ({
@@ -786,6 +1027,17 @@ export default function FluxoPropostaCliente() {
       series: [
         ...prev.series,
         { id: newId, serie: "Intermediária", qtd: "1", valor: "", vencimento: "" },
+      ],
+    }));
+  };
+
+  const handleAddMensalRow = () => {
+    const newId = `mensal-${Date.now()}`;
+    setState((prev) => ({
+      ...prev,
+      series: [
+        ...prev.series,
+        createMensalSeriesWithSaldo(prev.valorContrato, prev.series, newId),
       ],
     }));
   };
@@ -1151,7 +1403,17 @@ export default function FluxoPropostaCliente() {
                     </tr>
 
                     {/* Editable Series Rows */}
-                    {summary.rows.map((row) => (
+                    {summary.rows.map((row) => {
+                      const isMensal = isMensalSerie(row.serie);
+                      const saldoParaLinha = isMensal
+                        ? getSaldoDisponivelParaLinha(state.valorContrato, state.series, row.id)
+                        : 0;
+                      const showUsarSaldo =
+                        isMensal &&
+                        saldoParaLinha > 0 &&
+                        Math.abs(row.subtotal - saldoParaLinha) > 0.05;
+
+                      return (
                       <tr key={row.id} className="hover:bg-slate-50/70 transition-colors">
                         <td className="border border-slate-900 px-2 py-1.5">
                           <input
@@ -1159,7 +1421,7 @@ export default function FluxoPropostaCliente() {
                             aria-label={`Série ${row.serie}`}
                             maxLength={40}
                             value={row.serie}
-                            onChange={(e) => updateRow(row.id, { serie: e.target.value })}
+                            onChange={(e) => handleSerieChange(row.id, e.target.value)}
                             placeholder="Nome da série"
                             className="fluxo-no-print w-full px-1.5 py-1 rounded border border-transparent hover:border-slate-300 focus:border-secondary focus:bg-white focus:outline-none text-xs sm:text-sm font-medium text-slate-950 bg-transparent"
                           />
@@ -1173,10 +1435,8 @@ export default function FluxoPropostaCliente() {
                             max={600}
                             aria-label={`Quantidade ${row.serie}`}
                             value={row.qtd}
-                            onChange={(e) => {
-                              const cleaned = e.target.value.replace(/\D/g, "").slice(0, 3);
-                              updateRow(row.id, { qtd: cleaned });
-                            }}
+                            onFocus={() => handleRowFocusMensal(row.id)}
+                            onChange={(e) => handleQtdChange(row.id, e.target.value)}
                             className="fluxo-no-print w-full text-center px-1 py-1 rounded border border-transparent hover:border-slate-300 focus:border-secondary focus:bg-white focus:outline-none text-xs sm:text-sm tabular-nums text-slate-950 bg-transparent"
                           />
                           <span className="hidden print:inline tabular-nums">{row.qtdNum}</span>
@@ -1188,9 +1448,8 @@ export default function FluxoPropostaCliente() {
                             inputMode="numeric"
                             aria-label={`Valor unitário ${row.serie}`}
                             value={row.valor}
-                            onChange={(e) =>
-                              updateRow(row.id, { valor: maskBrlCurrencyInput(e.target.value) })
-                            }
+                            onFocus={() => handleRowFocusMensal(row.id)}
+                            onChange={(e) => handleValorChange(row.id, e.target.value)}
                             placeholder="R$ 0,00"
                             className="fluxo-no-print w-full px-1.5 py-1 rounded border border-transparent hover:border-slate-300 focus:border-secondary focus:bg-white focus:outline-none text-xs sm:text-sm font-semibold tabular-nums text-slate-950 bg-transparent"
                           />
@@ -1198,6 +1457,17 @@ export default function FluxoPropostaCliente() {
                             <div className="fluxo-no-print px-1.5 text-[10px] text-slate-500 tabular-nums">
                               Subtotal: {formatCurrency(row.subtotal)}
                             </div>
+                          )}
+                          {showUsarSaldo && (
+                            <button
+                              type="button"
+                              onClick={() => handleUsarSaldo(row.id)}
+                              className="fluxo-no-print mt-0.5 px-1.5 text-[10px] font-semibold text-amber-700 hover:text-amber-900 underline underline-offset-2 text-left tabular-nums transition-colors"
+                            >
+                              {row.qtdNum > 1
+                                ? `Dividir saldo: ${formatCurrency(saldoParaLinha)} ÷ ${row.qtdNum}`
+                                : `Usar saldo: ${formatCurrency(saldoParaLinha)}`}
+                            </button>
                           )}
                           <span className="hidden print:inline tabular-nums">
                             {formatCurrency(row.valorUnitario)}
@@ -1239,7 +1509,8 @@ export default function FluxoPropostaCliente() {
                           </button>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
 
                     {/* TOTAL Row */}
                     <tr className="bg-slate-50 font-extrabold text-slate-950">
@@ -1299,6 +1570,14 @@ export default function FluxoPropostaCliente() {
               >
                 <Plus className="w-3.5 h-3.5 shrink-0" />
                 Adicionar Série
+              </button>
+              <button
+                type="button"
+                onClick={handleAddMensalRow}
+                className="min-h-[38px] px-3 py-1.5 rounded-lg border border-secondary/70 bg-secondary/10 text-primary text-xs font-bold hover:bg-secondary/20 transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5 shrink-0" />
+                Incluir Mensal (Saldo)
               </button>
               <button
                 type="button"
